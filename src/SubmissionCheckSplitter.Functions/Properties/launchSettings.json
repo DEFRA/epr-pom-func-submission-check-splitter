@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "SubmissionCheckSplitter.Functions": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7140",
+      "launchBrowser": false
+    }
+  }
+}

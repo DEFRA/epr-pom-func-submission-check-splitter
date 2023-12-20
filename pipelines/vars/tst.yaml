@@ -1,0 +1,6 @@
+variables:
+  azureSubscription: 'AZD-RWD-TST1'
+  docker.imageName: 'submissionchecksplitter'
+  acr.azureContainerRegistryName: 'tstrwdinfac1401'
+  acr.repositoryName: 'submissionchecksplitterrepository'
+  serviceName: 'tstrwdwebfa1403'

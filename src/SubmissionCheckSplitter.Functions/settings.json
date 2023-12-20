@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "ServiceBus:ConnectionString": "Endpoint=sb://devrwdinfsb1401.servicebus.windows.net/",
+    "ServiceBus:UploadQueueName": "defra.epr.pom.data.uploaded",
+    "ServiceBus:SplitQueueName": "defra.epr.producer.data",
+    "StorageAccount:ConnectionString": "AccountName=devrwdwebsa1402;DefaultEndpointsProtocol=https;",
+    "StorageAccount:PomBlobContainerName": "pom-upload-container",
+    "SubmissionApi:BaseUrl": "https://localhost:1234",
+    "ValidationDataApi:BaseUrl": "https://localhost:7076",
+    "ValidationDataApi:IsEnabled": false,
+    "ValidationDataApi:Timeout": 10
+  }
+}

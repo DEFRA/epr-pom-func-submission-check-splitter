@@ -1,0 +1,6 @@
+variables:
+  azureSubscription: 'AZD-RWD-DEV2'
+  docker.imageName: 'submissionchecksplitter'
+  acr.azureContainerRegistryName: 'devrwdinfac1401'
+  acr.repositoryName: 'submissionchecksplitterrepository'
+  serviceName: 'devrwdwebfa2403'
