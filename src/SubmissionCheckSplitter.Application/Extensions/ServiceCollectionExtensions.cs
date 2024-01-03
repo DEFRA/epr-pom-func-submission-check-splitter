@@ -8,6 +8,7 @@ using Providers;
 using Readers;
 using Services;
 using SubmissionCheckSplitter.Application.Clients.Interfaces;
+using SubmissionCheckSplitter.Application.Handlers;
 
 [ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions
@@ -23,7 +24,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IBlobReader, BlobReader>();
         services.AddScoped<IServiceBusQueueClient, ServiceBusQueueClient>();
         services.AddScoped<ISubmissionApiClient, SubmissionApiClient>();
-        services.AddScoped<IValidationDataApiClient, ValidationDataApiClient>();
+        services.AddTransient<ValidationDataApiAuthorisationHandler>();
 
         return services;
     }

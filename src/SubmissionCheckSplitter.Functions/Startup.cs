@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using SubmissionCheckSplitter.Application.Clients;
 using SubmissionCheckSplitter.Application.Clients.Interfaces;
 using SubmissionCheckSplitter.Application.Extensions;
+using SubmissionCheckSplitter.Application.Handlers;
 using SubmissionCheckSplitter.Data.Config;
 using SubmissionCheckSplitter.Functions;
 using SubmissionCheckSplitter.Functions.Extensions;
@@ -33,12 +34,14 @@ public class Startup : FunctionsStartup
             c.BaseAddress = new Uri(submissionApiConfig.BaseUrl);
             c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         });
+
         services.AddHttpClient<IValidationDataApiClient, ValidationDataApiClient>((sp, c) =>
         {
             var validationDataApiConfig = sp.GetRequiredService<IOptions<ValidationDataApiConfig>>().Value;
             c.BaseAddress = new Uri(validationDataApiConfig.BaseUrl);
             c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             c.Timeout = TimeSpan.FromSeconds(validationDataApiConfig.Timeout);
-        });
+        })
+        .AddHttpMessageHandler<ValidationDataApiAuthorisationHandler>();
     }
 }

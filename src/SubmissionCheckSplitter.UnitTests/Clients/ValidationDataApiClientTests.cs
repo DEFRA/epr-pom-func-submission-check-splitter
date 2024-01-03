@@ -22,8 +22,13 @@ public class ValidationDataApiClientTests
     public void Setup()
     {
         _handlerMock = new Mock<HttpMessageHandler>();
-        var validationDataApiConfig = new ValidationDataApiConfig()
-            { BaseUrl = "https://www.testurl.com", IsEnabled = true, Timeout = 10 };
+        var validationDataApiConfig = new ValidationDataApiConfig
+        {
+            BaseUrl = "https://www.testurl.com",
+            ClientId = Guid.NewGuid().ToString(),
+            IsEnabled = true,
+            Timeout = 10
+        };
         _validationDataApiOptionsMock.Setup(x => x.Value).Returns(validationDataApiConfig);
         var httpClient = new HttpClient(_handlerMock.Object)
         {

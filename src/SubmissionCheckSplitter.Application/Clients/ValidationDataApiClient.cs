@@ -29,9 +29,9 @@ public class ValidationDataApiClient : IValidationDataApiClient
     {
         try
         {
-            var uriString = $"{_validationDataApiConfig.BaseUrl}/api/organisation/{organisationId}";
-
+            var uriString = $"api/organisation/{organisationId}";
             var response = await _httpClient.GetAsync(uriString);
+
             if (HttpStatusCode.NotFound.Equals(response.StatusCode))
             {
                 return null;

@@ -5,6 +5,8 @@ public class ValidationDataApiConfig
 
     public string BaseUrl { get; set; }
 
+    public string? ClientId { get; set; }
+
     public bool IsEnabled { get; set; }
 
     public int Timeout { get; set; }
