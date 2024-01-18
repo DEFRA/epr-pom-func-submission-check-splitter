@@ -12,12 +12,18 @@ public class ServiceBusQueueTrigger
     private readonly ISplitterService _splitterService;
     private readonly ILogger<ServiceBusQueueTrigger> _logger;
     private readonly IOptions<ValidationDataApiConfig> _validationDataApiOptions;
+    private readonly IOptions<ValidationConfig> _validationOptions;
 
-    public ServiceBusQueueTrigger(ISplitterService splitterService, ILogger<ServiceBusQueueTrigger> logger, IOptions<ValidationDataApiConfig> validationDataApiOptions)
+    public ServiceBusQueueTrigger(
+        ISplitterService splitterService,
+        ILogger<ServiceBusQueueTrigger> logger,
+        IOptions<ValidationDataApiConfig> validationDataApiOptions,
+        IOptions<ValidationConfig> validationOptions)
     {
         _splitterService = splitterService;
         _logger = logger;
         _validationDataApiOptions = validationDataApiOptions;
+        _validationOptions = validationOptions;
     }
 
     [FunctionName("ServiceBusQueueTrigger")]
@@ -25,7 +31,7 @@ public class ServiceBusQueueTrigger
     {
         _logger.LogEnter();
 
-        await _splitterService.ProcessServiceBusMessage(message, _validationDataApiOptions);
+        await _splitterService.ProcessServiceBusMessage(message, _validationDataApiOptions, _validationOptions);
 
         _logger.LogExit();
     }

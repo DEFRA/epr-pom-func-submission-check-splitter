@@ -4,10 +4,14 @@ using Clients;
 using Clients.Interfaces;
 using Constants;
 using Data.Config;
+using Data.Enums;
 using Data.Models;
 using Data.Models.QueueMessages;
+using Data.Models.SubmissionApi;
+using Data.Models.ValidationDataApi;
 using Exceptions;
 using Helpers;
+using Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Providers;
@@ -21,7 +25,10 @@ public class SplitterService : ISplitterService
     private readonly IServiceBusQueueClient _serviceBusQueueClient;
     private readonly ISubmissionApiClient _submissionApiClient;
     private readonly IValidationDataApiClient _validationDataApiClient;
+    private readonly IIssueCountService _issueCountService;
     private readonly ILogger<SplitterService> _logger;
+    private List<CheckSplitterWarning> _warnings = new();
+    private int _remainingWarningCount;
 
     public SplitterService(
         IDequeueProvider dequeueProvider,
@@ -30,6 +37,7 @@ public class SplitterService : ISplitterService
         IServiceBusQueueClient serviceBusQueueClient,
         ISubmissionApiClient submissionApiClient,
         IValidationDataApiClient validationDataApiClient,
+        IIssueCountService issueCountService,
         ILogger<SplitterService> logger)
     {
         _dequeueProvider = dequeueProvider;
@@ -38,10 +46,11 @@ public class SplitterService : ISplitterService
         _serviceBusQueueClient = serviceBusQueueClient;
         _submissionApiClient = submissionApiClient;
         _validationDataApiClient = validationDataApiClient;
+        _issueCountService = issueCountService;
         _logger = logger;
     }
 
-    public async Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions)
+    public async Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions, IOptions<ValidationConfig> validationOptions)
     {
         var blobQueueMessage = _dequeueProvider.GetMessageFromJson<BlobQueueMessage>(message);
         var blobMemoryStream = _blobReader.DownloadBlobToStream(blobQueueMessage.BlobName);
@@ -62,7 +71,21 @@ public class SplitterService : ISplitterService
                     .ToDictionary(g => g.Key, g => g.ToList());
                 numberOfRecords = groupedByProducer.Count;
 
-                await CheckOrganisationIds(blobQueueMessage.OrganisationId, groupedByProducer.Keys.ToArray(), validationDataApiOptions.Value);
+                var result = await CheckOrganisationIds(
+                    blobQueueMessage.OrganisationId,
+                    groupedByProducer.Keys.ToArray(),
+                    validationDataApiOptions.Value);
+
+                if (result is not null && result.IsComplianceScheme)
+                {
+                    _remainingWarningCount = validationOptions.Value.MaxIssuesToProcess;
+                    _warnings = await CheckComplianceSchemeMembers(
+                        blobQueueMessage.OrganisationId,
+                        blobQueueMessage.ComplianceSchemeId,
+                        blobQueueMessage.BlobName,
+                        groupedByProducer.Values.ToArray(),
+                        validationDataApiOptions.Value);
+                }
 
                 foreach (var producerGroup in groupedByProducer)
                 {
@@ -120,6 +143,7 @@ public class SplitterService : ISplitterService
                 blobQueueMessage.UserId,
                 blobQueueMessage.SubmissionId,
                 numberOfRecords,
+                _warnings,
                 errors);
         }
         catch (SubmissionApiClientException exception)
@@ -128,20 +152,91 @@ public class SplitterService : ISplitterService
         }
     }
 
-    private async Task CheckOrganisationIds(string userOrganisationId, string[] uploadedProducerIds, ValidationDataApiConfig validationDataApiConfig)
+    private static string FormatStoreKey(string blobName, string issueType)
+    {
+        return $"{blobName}:{issueType}";
+    }
+
+    private async Task<OrganisationDataResult> CheckOrganisationIds(
+        string userOrganisationId,
+        string[] uploadedProducerIds,
+        ValidationDataApiConfig validationDataApiConfig)
     {
         if (!validationDataApiConfig.IsEnabled)
         {
-            return;
+            return null;
         }
 
         var organisation =
-                await _validationDataApiClient.GetOrganisation(userOrganisationId);
+            await _validationDataApiClient.GetOrganisation(userOrganisationId);
 
         if (!organisation.IsComplianceScheme &&
-                (organisation.ReferenceNumber != uploadedProducerIds.First() || uploadedProducerIds.Length > 1))
+            (organisation.ReferenceNumber != uploadedProducerIds.First() || uploadedProducerIds.Length > 1))
+        {
+            throw new OrganisationNotFoundException();
+        }
+
+        return organisation;
+    }
+
+    private async Task<List<CheckSplitterWarning>> CheckComplianceSchemeMembers(
+        string userOrganisationId,
+        Guid? complianceSchemeId,
+        string blobName,
+        List<NumberedCsvDataRow>[] uploadedRows,
+        ValidationDataApiConfig validationDataApiConfig)
+    {
+        if (!validationDataApiConfig.IsEnabled)
+        {
+            return _warnings;
+        }
+
+        var warningStoreKey = FormatStoreKey(blobName, IssueType.Warning);
+
+        var organisationMembers =
+            await _validationDataApiClient.GetOrganisationMembers(userOrganisationId, complianceSchemeId);
+
+        foreach (var producerRows in uploadedRows.TakeWhile(_ => _remainingWarningCount > 0))
+        {
+            var complianceSchemeCheck = producerRows
+                .FirstOrDefault(x => !organisationMembers.MemberOrganisations.Contains(x.ProducerId));
+
+            if (complianceSchemeCheck == null)
             {
-                throw new OrganisationNotFoundException();
+                continue;
             }
+
+            AddWarningAndUpdateCount(producerRows, blobName);
+        }
+
+        await _issueCountService.IncrementIssueCountAsync(warningStoreKey, _warnings.Count);
+        return _warnings;
+    }
+
+    private async Task AddWarningAndUpdateCount(List<NumberedCsvDataRow> producerRows, string blobName)
+    {
+        var firstProducerRow = producerRows.First();
+        var warningEventRequest = new CheckSplitterWarning(
+            EventType.CheckSplitter,
+            firstProducerRow.RowNumber,
+            blobName,
+            new List<string> { ErrorCode.ComplianceSchemeMemberNotFoundErrorCode },
+            firstProducerRow.ProducerId,
+            firstProducerRow.ProducerType,
+            firstProducerRow.ProducerSize,
+            firstProducerRow.WasteType,
+            firstProducerRow.SubsidiaryId,
+            firstProducerRow.DataSubmissionPeriod,
+            firstProducerRow.PackagingCategory,
+            firstProducerRow.MaterialType,
+            firstProducerRow.MaterialSubType,
+            firstProducerRow.FromHomeNation,
+            firstProducerRow.ToHomeNation,
+            firstProducerRow.QuantityKg,
+            firstProducerRow.QuantityUnits);
+
+        _warnings.Add(warningEventRequest);
+
+        _remainingWarningCount -= 1;
     }
 }

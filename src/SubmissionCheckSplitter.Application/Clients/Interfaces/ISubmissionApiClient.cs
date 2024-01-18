@@ -1,5 +1,7 @@
 ﻿namespace SubmissionCheckSplitter.Application.Clients;
 
+using Data.Models.SubmissionApi;
+
 public interface ISubmissionApiClient
 {
     Task SendReport(
@@ -8,5 +10,6 @@ public interface ISubmissionApiClient
         string userId,
         string submissionId,
         int numberOfRecords,
+        List<CheckSplitterWarning> warningEventRequest,
         List<string> errors);
 }

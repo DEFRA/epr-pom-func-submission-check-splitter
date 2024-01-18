@@ -10,6 +10,8 @@
     "SubmissionApi:BaseUrl": "https://localhost:1234",
     "ValidationDataApi:BaseUrl": "https://localhost:7076",
     "ValidationDataApi:IsEnabled": false,
-    "ValidationDataApi:Timeout": 10
+    "ValidationDataApi:Timeout": 10,
+    "Validation:MaxIssuesToProcess": 1000,
+    "Redis:ConnectionString":"https://localhost:1234"
   }
 }

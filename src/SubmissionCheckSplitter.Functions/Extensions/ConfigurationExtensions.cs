@@ -16,6 +16,8 @@ public static class ConfigurationExtensions
         services.ConfigureSection<StorageAccountConfig>(StorageAccountConfig.Section);
         services.ConfigureSection<SubmissionApiConfig>(SubmissionApiConfig.Section);
         services.ConfigureSection<ValidationDataApiConfig>(ValidationDataApiConfig.Section);
+        services.ConfigureSection<ValidationConfig>(ValidationConfig.Section);
+        services.ConfigureSection<RedisConfig>(RedisConfig.Section);
 
         return services;
     }

@@ -55,7 +55,7 @@ public class SubmissionApiClientTests
         var sut = new SubmissionApiClient(httpClient, _submissionApiOptionsMock.Object, _storageAccountOptionsMock.Object);
 
         // act
-        await sut.SendReport(BlobName, OrgId, UserId, SubmissionId, ProducerCount, null);
+        await sut.SendReport(BlobName, OrgId, UserId, SubmissionId, ProducerCount, null, null);
 
         // assert
         handlerMock.Protected().Verify(
@@ -91,7 +91,7 @@ public class SubmissionApiClientTests
 
         var sut = new SubmissionApiClient(httpClient, _submissionApiOptionsMock.Object, _storageAccountOptionsMock.Object);
 
-        await sut.SendReport(BlobName, OrgId, UserId, SubmissionId, 0, errors);
+        await sut.SendReport(BlobName, OrgId, UserId, SubmissionId, 0, null, errors);
 
         handlerMock.Protected().Verify(
             "SendAsync",

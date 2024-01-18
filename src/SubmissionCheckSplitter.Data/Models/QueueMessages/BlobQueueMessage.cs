@@ -14,4 +14,6 @@ public class BlobQueueMessage
     public string OrganisationId { get; set; }
 
     public string SubmissionPeriod { get; set; }
+
+    public Guid? ComplianceSchemeId { get; set; }
 }

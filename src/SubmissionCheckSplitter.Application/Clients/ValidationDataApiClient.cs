@@ -2,30 +2,25 @@
 
 using System.Net;
 using System.Net.Http.Json;
-using Data.Config;
 using Data.Models.ValidationDataApi;
 using Exceptions;
 using Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 public class ValidationDataApiClient : IValidationDataApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<ValidationDataApiClient> _logger;
-    private readonly ValidationDataApiConfig _validationDataApiConfig;
 
     public ValidationDataApiClient(
         HttpClient httpClient,
-        ILogger<ValidationDataApiClient> logger,
-        IOptions<ValidationDataApiConfig> validationDataApiConfig)
+        ILogger<ValidationDataApiClient> logger)
     {
         _httpClient = httpClient;
         _logger = logger;
-        _validationDataApiConfig = validationDataApiConfig.Value;
     }
 
-    public async Task<ValidationDataApiResult> GetOrganisation(string organisationId)
+    public async Task<OrganisationDataResult> GetOrganisation(string organisationId)
     {
         try
         {
@@ -39,13 +34,39 @@ public class ValidationDataApiClient : IValidationDataApiClient
 
             response.EnsureSuccessStatusCode();
 
-            _logger.LogInformation("Data received from Validation Api");
+            _logger.LogInformation("Organisation details received from Validation Api");
 
-            return await response.Content.ReadFromJsonAsync<ValidationDataApiResult>();
+            return await response.Content.ReadFromJsonAsync<OrganisationDataResult>();
         }
         catch (HttpRequestException exception)
         {
-            const string message = "A success status code was not received when requesting organisation with member details";
+            const string message = "A success status code was not received when requesting organisation details";
+            _logger.LogError(exception, message);
+            throw new ValidationDataApiClientException(message, exception);
+        }
+    }
+
+    public async Task<OrganisationMembersResult> GetOrganisationMembers(string organisationId, Guid? complianceSchemeId)
+    {
+        try
+        {
+            var uriString = $"api/organisation/{organisationId}/members/{complianceSchemeId}";
+
+            var response = await _httpClient.GetAsync(uriString);
+            if (HttpStatusCode.NotFound.Equals(response.StatusCode))
+            {
+                return null;
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            _logger.LogInformation("Organisation member details received from Validation Api");
+
+            return await response.Content.ReadFromJsonAsync<OrganisationMembersResult>();
+        }
+        catch (HttpRequestException exception)
+        {
+            const string message = "A success status code was not received when requesting organisation member details";
             _logger.LogError(exception, message);
             throw new ValidationDataApiClientException(message, exception);
         }

@@ -14,6 +14,7 @@ public class ServiceBusQueueTriggerTests
     private readonly Mock<ISplitterService> _splitterServiceMock = new();
     private readonly Mock<ILogger<ServiceBusQueueTrigger>> _loggerMock = new();
     private readonly Mock<IOptions<ValidationDataApiConfig>> _validationDataOptionsMock = new();
+    private readonly Mock<IOptions<ValidationConfig>> _validationOptionsMock = new();
 
     private ServiceBusQueueTrigger _systemUnderTest;
 
@@ -23,7 +24,8 @@ public class ServiceBusQueueTriggerTests
         _systemUnderTest = new ServiceBusQueueTrigger(
             _splitterServiceMock.Object,
             _loggerMock.Object,
-            _validationDataOptionsMock.Object);
+            _validationDataOptionsMock.Object,
+            _validationOptionsMock.Object);
     }
 
     [TestMethod]
@@ -32,7 +34,7 @@ public class ServiceBusQueueTriggerTests
         // Arrange
         _splitterServiceMock
             .Setup(service => service.ProcessServiceBusMessage(
-                It.IsAny<string>(), _validationDataOptionsMock.Object));
+                It.IsAny<string>(), _validationDataOptionsMock.Object, _validationOptionsMock.Object));
 
         // Act
         _systemUnderTest.RunAsync(It.IsAny<string>());

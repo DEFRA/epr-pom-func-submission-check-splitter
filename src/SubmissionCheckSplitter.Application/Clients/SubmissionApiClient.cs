@@ -29,11 +29,17 @@ public class SubmissionApiClient : ISubmissionApiClient
         string userId,
         string submissionId,
         int numberOfRecords,
+        List<CheckSplitterWarning> warningEventRequest,
         List<string> errors)
     {
         try
         {
-            var requestBody = new SubmissionEventRequest(numberOfRecords, blobName, _storageAccountConfig.PomBlobContainerName, errors);
+            var requestBody = new SubmissionEventRequest(
+                numberOfRecords,
+                blobName,
+                _storageAccountConfig.PomBlobContainerName,
+                warningEventRequest,
+                errors);
             var request = BuildRequestMessage(orgId, userId, submissionId, requestBody);
 
             var response = await _httpClient.SendAsync(request);

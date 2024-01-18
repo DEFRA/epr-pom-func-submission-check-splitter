@@ -4,5 +4,7 @@ using Data.Models.ValidationDataApi;
 
 public interface IValidationDataApiClient
 {
-    Task<ValidationDataApiResult> GetOrganisation(string organisationId);
+    Task<OrganisationDataResult> GetOrganisation(string organisationId);
+
+    Task<OrganisationMembersResult> GetOrganisationMembers(string organisationId, Guid? complianceSchemeId);
 }

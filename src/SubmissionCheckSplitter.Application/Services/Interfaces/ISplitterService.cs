@@ -5,5 +5,5 @@ using SubmissionCheckSplitter.Data.Config;
 
 public interface ISplitterService
 {
-    Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions);
+    Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions, IOptions<ValidationConfig> validationOptions);
 }
