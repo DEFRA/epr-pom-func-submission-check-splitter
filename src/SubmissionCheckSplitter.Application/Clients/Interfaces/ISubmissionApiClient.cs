@@ -11,5 +11,6 @@ public interface ISubmissionApiClient
         string submissionId,
         int numberOfRecords,
         List<CheckSplitterWarning> warningEventRequest,
+        List<CheckSplitterError> errorEventRequest,
         List<string> errors);
 }

@@ -71,4 +71,29 @@ public class ValidationDataApiClient : IValidationDataApiClient
             throw new ValidationDataApiClientException(message, exception);
         }
     }
+
+    public async Task<OrganisationsResult> GetValidOrganisations(IEnumerable<string> referenceNumbers)
+    {
+        try
+        {
+            var requestData = new OrganisationsRequest
+            {
+                ReferenceNumbers = referenceNumbers
+            };
+
+            var response = await _httpClient.PostAsJsonAsync($"api/organisations", requestData);
+
+            response.EnsureSuccessStatusCode();
+
+            _logger.LogInformation("Valid organisations received from Validation Api");
+
+            return await response.Content.ReadFromJsonAsync<OrganisationsResult>();
+        }
+        catch (HttpRequestException exception)
+        {
+            const string message = "A success status code was not received when requesting valid organisations";
+            _logger.LogError(exception, message);
+            throw new ValidationDataApiClientException(message, exception);
+        }
+    }
 }

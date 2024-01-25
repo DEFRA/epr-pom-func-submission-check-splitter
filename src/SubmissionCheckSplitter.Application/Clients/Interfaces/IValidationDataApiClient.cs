@@ -7,4 +7,6 @@ public interface IValidationDataApiClient
     Task<OrganisationDataResult> GetOrganisation(string organisationId);
 
     Task<OrganisationMembersResult> GetOrganisationMembers(string organisationId, Guid? complianceSchemeId);
+
+    Task<OrganisationsResult> GetValidOrganisations(IEnumerable<string> referenceNumbers);
 }

@@ -1,5 +1,6 @@
 ﻿namespace SubmissionCheckSplitter.Application.Services;
 
+using System.Text.RegularExpressions;
 using Clients;
 using Clients.Interfaces;
 using Constants;
@@ -28,7 +29,9 @@ public class SplitterService : ISplitterService
     private readonly IIssueCountService _issueCountService;
     private readonly ILogger<SplitterService> _logger;
     private List<CheckSplitterWarning> _warnings = new();
+    private List<CheckSplitterError> _errors = new();
     private int _remainingWarningCount;
+    private int _remainingErrorCount;
 
     public SplitterService(
         IDequeueProvider dequeueProvider,
@@ -84,6 +87,12 @@ public class SplitterService : ISplitterService
                         blobQueueMessage.ComplianceSchemeId,
                         blobQueueMessage.BlobName,
                         groupedByProducer.Values.ToArray(),
+                        validationDataApiOptions.Value);
+
+                    _remainingErrorCount = validationOptions.Value.MaxIssuesToProcess;
+                    _errors = await CheckComplianceSchemeOrganisationsExist(
+                        groupedByProducer,
+                        blobQueueMessage.BlobName,
                         validationDataApiOptions.Value);
                 }
 
@@ -144,6 +153,7 @@ public class SplitterService : ISplitterService
                 blobQueueMessage.SubmissionId,
                 numberOfRecords,
                 _warnings,
+                _errors,
                 errors);
         }
         catch (SubmissionApiClientException exception)
@@ -155,6 +165,39 @@ public class SplitterService : ISplitterService
     private static string FormatStoreKey(string blobName, string issueType)
     {
         return $"{blobName}:{issueType}";
+    }
+
+    private static T CreateIssueEventRequest<T>(NumberedCsvDataRow firstProducerRow, string blobName, string errorCode)
+        where T : CheckSplitterIssue, new()
+    {
+        var request = new T()
+        {
+            RowNumber = firstProducerRow.RowNumber,
+            BlobName = blobName,
+            ErrorCodes = new List<string> { errorCode },
+            ProducerId = firstProducerRow.ProducerId,
+            ProducerType = firstProducerRow.ProducerType,
+            ProducerSize = firstProducerRow.ProducerSize,
+            WasteType = firstProducerRow.WasteType,
+            SubsidiaryId = firstProducerRow.SubsidiaryId,
+            DataSubmissionPeriod = firstProducerRow.DataSubmissionPeriod,
+            PackagingCategory = firstProducerRow.PackagingCategory,
+            MaterialType = firstProducerRow.MaterialType,
+            MaterialSubType = firstProducerRow.MaterialSubType,
+            FromHomeNation = firstProducerRow.FromHomeNation,
+            ToHomeNation = firstProducerRow.ToHomeNation,
+            QuantityKg = firstProducerRow.QuantityKg,
+            QuantityUnits = firstProducerRow.QuantityUnits
+        };
+
+        return request;
+    }
+
+    private static bool CheckProducerIsValidFormat(KeyValuePair<string, List<NumberedCsvDataRow>> producer)
+    {
+        var pattern = "^[0-9]{6}$";
+        var match = Regex.Match(producer.Key, pattern, RegexOptions.None, TimeSpan.FromSeconds(2));
+        return match.Success;
     }
 
     private async Task<OrganisationDataResult> CheckOrganisationIds(
@@ -206,37 +249,70 @@ public class SplitterService : ISplitterService
                 continue;
             }
 
-            AddWarningAndUpdateCount(producerRows, blobName);
+            AddIssueAndUpdateCount(producerRows, blobName, ErrorCode.ComplianceSchemeMemberNotFoundErrorCode, IssueType.Warning);
         }
 
-        await _issueCountService.IncrementIssueCountAsync(warningStoreKey, _warnings.Count);
+        await _issueCountService.PersistIssueCountToRedisAsync(warningStoreKey, _warnings.Count);
         return _warnings;
     }
 
-    private async Task AddWarningAndUpdateCount(List<NumberedCsvDataRow> producerRows, string blobName)
+    private async Task<List<CheckSplitterError>> CheckComplianceSchemeOrganisationsExist(
+        Dictionary<string, List<NumberedCsvDataRow>> uploadedProducers,
+        string blobName,
+        ValidationDataApiConfig validationDataApiConfig)
+    {
+        if (!validationDataApiConfig.IsEnabled)
+        {
+            return _errors;
+        }
+
+        var producerList = uploadedProducers.Keys.ToList();
+        var errorStoreKey = FormatStoreKey(blobName, IssueType.Error);
+
+        foreach (var producer in uploadedProducers.TakeWhile(_ => _remainingErrorCount > 0))
+        {
+            var isValidFormat = CheckProducerIsValidFormat(producer);
+
+            if (!isValidFormat)
+            {
+                producerList.Remove(producer.Key);
+            }
+        }
+
+        if (_remainingErrorCount > 0)
+        {
+            var organisations = await _validationDataApiClient.GetValidOrganisations(producerList.ToArray());
+
+            foreach (var producer in uploadedProducers.TakeWhile(_ => _remainingErrorCount > 0))
+            {
+                if (!organisations.ReferenceNumbers.Contains(producer.Key))
+                {
+                   await AddIssueAndUpdateCount(producer.Value, blobName, ErrorCode.OrganisationDoesNotExistExistErrorCode, IssueType.Error);
+                }
+            }
+        }
+
+        await _issueCountService.PersistIssueCountToRedisAsync(errorStoreKey, _errors.Count);
+        return _errors;
+    }
+
+    private async Task AddIssueAndUpdateCount(List<NumberedCsvDataRow> producerRows, string blobName, string errorCode, string issueType)
     {
         var firstProducerRow = producerRows.First();
-        var warningEventRequest = new CheckSplitterWarning(
-            EventType.CheckSplitter,
-            firstProducerRow.RowNumber,
-            blobName,
-            new List<string> { ErrorCode.ComplianceSchemeMemberNotFoundErrorCode },
-            firstProducerRow.ProducerId,
-            firstProducerRow.ProducerType,
-            firstProducerRow.ProducerSize,
-            firstProducerRow.WasteType,
-            firstProducerRow.SubsidiaryId,
-            firstProducerRow.DataSubmissionPeriod,
-            firstProducerRow.PackagingCategory,
-            firstProducerRow.MaterialType,
-            firstProducerRow.MaterialSubType,
-            firstProducerRow.FromHomeNation,
-            firstProducerRow.ToHomeNation,
-            firstProducerRow.QuantityKg,
-            firstProducerRow.QuantityUnits);
 
-        _warnings.Add(warningEventRequest);
+        if (issueType == IssueType.Error)
+        {
+            var errorEventRequest = CreateIssueEventRequest<CheckSplitterError>(firstProducerRow, blobName, errorCode);
 
-        _remainingWarningCount -= 1;
+            _errors.Add(errorEventRequest);
+            _remainingErrorCount -= 1;
+        }
+        else
+        {
+            var warningEventRequest = CreateIssueEventRequest<CheckSplitterWarning>(firstProducerRow, blobName, errorCode);
+
+            _warnings.Add(warningEventRequest);
+            _remainingWarningCount -= 1;
+        }
     }
 }

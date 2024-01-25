@@ -2,7 +2,7 @@
 
 public interface IIssueCountService
 {
-    Task IncrementIssueCountAsync(string key, int count);
+    Task PersistIssueCountToRedisAsync(string key, int count);
 
     Task<int> GetRemainingIssueCapacityAsync(string key);
 }

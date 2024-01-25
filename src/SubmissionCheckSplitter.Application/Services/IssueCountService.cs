@@ -18,7 +18,7 @@ public class IssueCountService : IIssueCountService
         _redisDatabase = redisConnectionMultiplexer.GetDatabase();
     }
 
-    public async Task IncrementIssueCountAsync(string key, int count)
+    public async Task PersistIssueCountToRedisAsync(string key, int count)
     {
         await _redisDatabase.StringIncrementAsync(key, count);
     }

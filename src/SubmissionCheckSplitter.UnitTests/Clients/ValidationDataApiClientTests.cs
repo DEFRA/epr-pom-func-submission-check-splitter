@@ -296,4 +296,92 @@ public class ValidationDataApiClientTests
         // Assert
         await act.Should().ThrowExactlyAsync<ValidationDataApiClientException>();
     }
+
+    [TestMethod]
+    public async Task GetValidOrganisations_SuccessfulResponse()
+    {
+        // Arrange
+        var organisations = new List<string>() { "ref-12345", "ref-67890" };
+        const string mockJson = @"
+            {
+                ""ReferenceNumbers"":[
+                     ""ref-12345"",
+                     ""ref-67890""
+                ]
+            }";
+        var mockResponse = new HttpResponseMessage
+        {
+            StatusCode = HttpStatusCode.OK,
+            Content = new StringContent(mockJson),
+        };
+
+        _handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Post &&
+                    req.RequestUri.ToString().EndsWith($"organisations")),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(mockResponse);
+
+        // Act
+        var result = await _validationDataApiClient.GetValidOrganisations(organisations);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.ReferenceNumbers.Should().Contain("ref-12345");
+        result.ReferenceNumbers.Should().Contain("ref-67890");
+        _handlerMock.Protected().Verify(
+            "SendAsync",
+            Times.Exactly(1),
+            ItExpr.Is<HttpRequestMessage>(req =>
+                req.Method == HttpMethod.Post &&
+                req.RequestUri.ToString().EndsWith($"organisations") &&
+                mockResponse.StatusCode == HttpStatusCode.OK),
+            ItExpr.IsAny<CancellationToken>());
+    }
+
+    [TestMethod]
+    public async Task GetValidOrganisations_BadRequestResponse()
+    {
+        // Arrange
+        var organisationId = new List<string>() { "bad-request" };
+        _handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.BadRequest
+            });
+
+        // Act
+        Func<Task> act = async () => await _validationDataApiClient.GetValidOrganisations(organisationId);
+
+        // Assert
+        await act.Should().ThrowExactlyAsync<ValidationDataApiClientException>();
+    }
+
+    [TestMethod]
+    public async Task GetValidOrganisations_ServerErrorResponse()
+    {
+        // Arrange
+        var organisation = new List<string>() { "server-error-org" };
+        _handlerMock.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.InternalServerError
+            });
+
+        // Act
+        Func<Task> act = async () => await _validationDataApiClient.GetValidOrganisations(organisation);
+
+        // Assert
+        await act.Should().ThrowExactlyAsync<ValidationDataApiClientException>();
+    }
 }

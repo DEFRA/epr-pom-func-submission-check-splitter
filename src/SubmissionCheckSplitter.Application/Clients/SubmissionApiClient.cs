@@ -30,6 +30,7 @@ public class SubmissionApiClient : ISubmissionApiClient
         string submissionId,
         int numberOfRecords,
         List<CheckSplitterWarning> warningEventRequest,
+        List<CheckSplitterError> errorEventRequest,
         List<string> errors)
     {
         try
@@ -39,6 +40,7 @@ public class SubmissionApiClient : ISubmissionApiClient
                 blobName,
                 _storageAccountConfig.PomBlobContainerName,
                 warningEventRequest,
+                errorEventRequest,
                 errors);
             var request = BuildRequestMessage(orgId, userId, submissionId, requestBody);
 

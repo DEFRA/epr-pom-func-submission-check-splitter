@@ -41,7 +41,7 @@ public class IssueCountServiceTests
         const int mockCount = 0;
 
         // Act
-        _serviceUnderTest.IncrementIssueCountAsync(MockKey, mockCount);
+        _serviceUnderTest.PersistIssueCountToRedisAsync(MockKey, mockCount);
 
         // Assert
         _databaseMock.Verify(x => x.StringIncrementAsync(MockKey, mockCount, default), Times.Once);
