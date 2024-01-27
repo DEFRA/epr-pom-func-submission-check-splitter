@@ -927,19 +927,18 @@ public class SplitterServiceTests
     }
 
     [TestMethod]
-    public async Task ProcessServiceBusMessage_WhenOrganisationIsNotSixDigits_NeverSentToValidationDataApi()
+    public async Task ProcessServiceBusMessage_WhenOrganisationIsNotSixDigits_NeverSentToValidationDataApi_AndNoError()
     {
         // Arrange
         var userOrganisationId = "ValidOrgId";
         var complianceSchemeId = Guid.NewGuid();
         var invalidProducerIds = new[] { "InvalidProducer" };
-        var validProducerIds = new[] { "123456" };
         var organisation = new OrganisationDataResult(userOrganisationId, true);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(userOrganisationId))
             .ReturnsAsync(organisation);
         _validationDataApiClientMock.Setup(x => x.GetOrganisationMembers(userOrganisationId, complianceSchemeId))
-            .ReturnsAsync(new OrganisationMembersResult(validProducerIds));
+            .ReturnsAsync(It.IsAny<OrganisationMembersResult>());
         _validationDataApiConfigMock.Setup(config => config.Value).Returns(new ValidationDataApiConfig { IsEnabled = true });
 
         var blobQueueMessage = new BlobQueueMessage
@@ -959,8 +958,7 @@ public class SplitterServiceTests
 
         _csvItems = new List<CsvDataRow>
         {
-            new CsvDataRow { ProducerId = invalidProducerIds[0] },
-            new CsvDataRow { ProducerId = validProducerIds[0] }
+            new CsvDataRow { ProducerId = invalidProducerIds[0] }
         };
         _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
             .Returns(_csvItems);
@@ -973,10 +971,18 @@ public class SplitterServiceTests
             x => x.GetValidOrganisations(
                 It.Is<IEnumerable<string>>(referenceNumbers => referenceNumbers.SequenceEqual(invalidProducerIds))),
             Times.Never);
-        _validationDataApiClientMock.Verify(
-            x => x.GetValidOrganisations(
-            It.Is<IEnumerable<string>>(referenceNumbers => referenceNumbers.SequenceEqual(validProducerIds))),
-            Times.Once);
+        _submissionApiClientMock
+            .Verify(
+                x => x.SendReport(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.Is<List<CheckSplitterWarning>>(m => m.Count == 1),
+                    It.Is<List<CheckSplitterError>>(m => m.Count == 0),
+                    It.IsAny<List<string>>()),
+                Times.Once);
     }
 
     [TestMethod]

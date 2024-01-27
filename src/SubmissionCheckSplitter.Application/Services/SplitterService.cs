@@ -242,14 +242,14 @@ public class SplitterService : ISplitterService
         foreach (var producerRows in uploadedRows.TakeWhile(_ => _remainingWarningCount > 0))
         {
             var complianceSchemeCheck = producerRows
-                .FirstOrDefault(x => !organisationMembers.MemberOrganisations.Contains(x.ProducerId));
+                .FirstOrDefault(x => organisationMembers != null && !organisationMembers.MemberOrganisations.Contains(x.ProducerId));
 
-            if (complianceSchemeCheck == null)
+            if (complianceSchemeCheck == null && organisationMembers != null)
             {
                 continue;
             }
 
-            AddIssueAndUpdateCount(producerRows, blobName, ErrorCode.ComplianceSchemeMemberNotFoundErrorCode, IssueType.Warning);
+            await AddIssueAndUpdateCountAsync(producerRows, blobName, ErrorCode.ComplianceSchemeMemberNotFoundErrorCode, IssueType.Warning);
         }
 
         await _issueCountService.PersistIssueCountToRedisAsync(warningStoreKey, _warnings.Count);
@@ -283,11 +283,14 @@ public class SplitterService : ISplitterService
         {
             var organisations = await _validationDataApiClient.GetValidOrganisations(producerList.ToArray());
 
-            foreach (var producer in uploadedProducers.TakeWhile(_ => _remainingErrorCount > 0))
+            var filteredProducers = uploadedProducers
+                .Where(kv => producerList.Contains(kv.Key));
+
+            foreach (var producer in filteredProducers.TakeWhile(_ => _remainingErrorCount > 0))
             {
                 if (!organisations.ReferenceNumbers.Contains(producer.Key))
                 {
-                   await AddIssueAndUpdateCount(producer.Value, blobName, ErrorCode.OrganisationDoesNotExistExistErrorCode, IssueType.Error);
+                   await AddIssueAndUpdateCountAsync(producer.Value, blobName, ErrorCode.OrganisationDoesNotExistExistErrorCode, IssueType.Error);
                 }
             }
         }
@@ -296,7 +299,7 @@ public class SplitterService : ISplitterService
         return _errors;
     }
 
-    private async Task AddIssueAndUpdateCount(List<NumberedCsvDataRow> producerRows, string blobName, string errorCode, string issueType)
+    private async Task AddIssueAndUpdateCountAsync(List<NumberedCsvDataRow> producerRows, string blobName, string errorCode, string issueType)
     {
         var firstProducerRow = producerRows.First();
 
