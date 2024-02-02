@@ -94,6 +94,11 @@ public class SplitterService : ISplitterService
                         groupedByProducer,
                         blobQueueMessage.BlobName,
                         validationDataApiOptions.Value);
+
+                    if (_errors.Any() && _warnings.Any())
+                    {
+                        RemoveComplianceSchemeWarnings();
+                    }
                 }
 
                 foreach (var producerGroup in groupedByProducer)
@@ -198,6 +203,17 @@ public class SplitterService : ISplitterService
         var pattern = "^[0-9]{6}$";
         var match = Regex.Match(producer.Key, pattern, RegexOptions.None, TimeSpan.FromSeconds(2));
         return match.Success;
+    }
+
+    private void RemoveComplianceSchemeWarnings()
+    {
+        var existErrors = new HashSet<int>(_errors
+            .Where(e => e.ErrorCodes.Contains(ErrorCode.OrganisationDoesNotExistExistErrorCode))
+            .Select(e => e.RowNumber));
+        var intersectWarnings = _warnings
+            .Where(w => existErrors.Contains(w.RowNumber) && w.ErrorCodes.Contains(ErrorCode.ComplianceSchemeMemberNotFoundErrorCode))
+            .ToList();
+        _warnings = _warnings.Except(intersectWarnings).ToList();
     }
 
     private async Task<OrganisationDataResult> CheckOrganisationIds(

@@ -818,7 +818,7 @@ public class SplitterServiceTests
     }
 
     [TestMethod]
-    public async Task ProcessServiceBusMessage_ErrorAdded_WhenOrganisationIsSixDigitsAndDoesNotExist()
+    public async Task ProcessServiceBusMessage_ErrorAddedNoWarning_WhenOrganisationIsSixDigitsAndDoesNotExist()
     {
         // Arrange
         var userOrganisationId = "ValidOrgId";
@@ -873,8 +873,70 @@ public class SplitterServiceTests
                 blobQueueMessage.UserId,
                 blobQueueMessage.SubmissionId,
                 2,
-                It.Is<List<CheckSplitterWarning>>(m => m.Count == 1 && m[0].ErrorCodes[0] == ErrorCode.ComplianceSchemeMemberNotFoundErrorCode),
+                It.Is<List<CheckSplitterWarning>>(m => m.Count == 0),
                 It.Is<List<CheckSplitterError>>(m => m.Count == 1 && m[0].ErrorCodes[0] == ErrorCode.OrganisationDoesNotExistExistErrorCode),
+                It.IsAny<List<string>>()));
+    }
+
+    [TestMethod]
+    public async Task ProcessServiceBusMessage_WarningNoError_WhenOrganisationExistsAndNotAMember()
+    {
+        // Arrange
+        const string userOrganisationId = "ValidOrgId";
+        var complianceSchemeId = Guid.NewGuid();
+        const string notMemberId = "111111";
+        const string memberId = "123456";
+        var validOrganisationMembers = new[] { memberId };
+        var validOrganisations = new[] { memberId, notMemberId };
+
+        var organisation = new OrganisationDataResult(userOrganisationId, true);
+
+        _validationDataApiClientMock.Setup(x => x.GetOrganisation(userOrganisationId))
+            .ReturnsAsync(organisation);
+        _validationDataApiClientMock.Setup(x => x.GetOrganisationMembers(userOrganisationId, complianceSchemeId))
+            .ReturnsAsync(new OrganisationMembersResult(validOrganisationMembers));
+        _validationDataApiClientMock.Setup(x => x.GetValidOrganisations(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new OrganisationsResult(validOrganisations));
+        _validationDataApiConfigMock.Setup(config => config.Value).Returns(new ValidationDataApiConfig { IsEnabled = true });
+
+        var blobQueueMessage = new BlobQueueMessage
+        {
+            OrganisationId = userOrganisationId,
+            BlobName = "testBlob",
+            SubmissionPeriod = SubmissionPeriod,
+            ComplianceSchemeId = complianceSchemeId
+        };
+        var serializedQueueMessage = JsonConvert.SerializeObject(blobQueueMessage);
+
+        _dequeueProviderMock.Setup(x => x.GetMessageFromJson<BlobQueueMessage>(serializedQueueMessage))
+            .Returns(blobQueueMessage);
+
+        _blobReaderMock.Setup(x => x.DownloadBlobToStream(blobQueueMessage.BlobName))
+            .Returns(new MemoryStream());
+
+        _csvItems = new List<CsvDataRow>
+        {
+            new CsvDataRow { ProducerId = memberId },
+            new CsvDataRow { ProducerId = notMemberId }
+        };
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+            .Returns(_csvItems);
+
+        // Act
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+
+        // Assert
+        _validationDataApiClientMock.Verify(x => x.GetValidOrganisations(
+            It.Is<IEnumerable<string>>(referenceNumbers => referenceNumbers.SequenceEqual(new[] { memberId, notMemberId }))));
+        _submissionApiClientMock.Verify(
+            x => x.SendReport(
+                blobQueueMessage.BlobName,
+                blobQueueMessage.OrganisationId,
+                blobQueueMessage.UserId,
+                blobQueueMessage.SubmissionId,
+                2,
+                It.Is<List<CheckSplitterWarning>>(m => m.Count == 1 && m[0].ErrorCodes[0] == ErrorCode.ComplianceSchemeMemberNotFoundErrorCode),
+                It.Is<List<CheckSplitterError>>(m => m.Count == 0),
                 It.IsAny<List<string>>()));
     }
 
