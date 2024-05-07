@@ -278,8 +278,8 @@ public class SplitterServiceTests
         // Assert
         _loggerMock.VerifyLog(
             logger => logger.LogCritical(
-                It.Is<CsvParseException>(e => e.Message.Contains("OrganisationId/ProducerId is null on one or more rows")),
-                It.Is<string>(msg => msg.Contains("An error occurred parsing the CSV file"))),
+                It.Is<CsvFileEmptyValueException>(e => e.Message.Contains("OrganisationId/ProducerId is null on one or more rows")),
+                It.Is<string>(msg => msg.Contains("Some required fields are empty"))),
             Times.Once);
     }
 

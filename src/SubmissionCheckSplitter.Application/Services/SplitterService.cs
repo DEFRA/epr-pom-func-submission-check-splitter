@@ -66,7 +66,7 @@ public class SplitterService : ISplitterService
 
             if (csvItems.Any(c => c.ProducerId == null))
             {
-                throw new CsvParseException("OrganisationId/ProducerId is null on one or more rows");
+                throw new CsvFileEmptyValueException("OrganisationId/ProducerId is null on one or more rows");
             }
             else if (csvItems.Any())
             {
@@ -140,6 +140,15 @@ public class SplitterService : ISplitterService
             errors = new List<string>
             {
                 ErrorCode.CsvParseExceptionErrorCode,
+            };
+        }
+        catch (CsvFileEmptyValueException exception)
+        {
+            _logger.LogCritical(exception, "Some required fields are empty");
+
+            errors = new List<string>
+            {
+                ErrorCode.CsvFileEmptyValueErrorCode,
             };
         }
         catch (Exception exception)
