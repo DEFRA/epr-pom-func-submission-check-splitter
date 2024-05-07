@@ -5,7 +5,6 @@ using Clients;
 using Clients.Interfaces;
 using Constants;
 using Data.Config;
-using Data.Enums;
 using Data.Models;
 using Data.Models.QueueMessages;
 using Data.Models.SubmissionApi;
@@ -65,7 +64,11 @@ public class SplitterService : ISplitterService
         {
             var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream);
 
-            if (csvItems.Any())
+            if (csvItems.Any(c => c.ProducerId == null))
+            {
+                throw new CsvParseException("OrganisationId/ProducerId is null on one or more rows");
+            }
+            else if (csvItems.Any())
             {
                 var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod);
 

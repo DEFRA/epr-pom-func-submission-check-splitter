@@ -17,6 +17,7 @@ using Data.Models.SubmissionApi;
 using Data.Models.ValidationDataApi;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualBasic;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using Newtonsoft.Json;
@@ -240,6 +241,46 @@ public class SplitterServiceTests
                     It.IsAny<BlobQueueMessage>(),
                     It.IsAny<List<NumberedCsvDataRow>>()),
                 Times.Never);
+    }
+
+    [TestMethod]
+    public void InvalidCsvProducerIdData_SendsInvalidReport()
+    {
+        // arrange
+        _blobQueueMessage = _fixture.Create<BlobQueueMessage>();
+        _blobQueueMessage.OrganisationId = string.Empty;
+
+        _serializedQueueMessage = JsonConvert.SerializeObject(_blobQueueMessage);
+
+        _dequeueProviderMock
+            .Setup(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage))
+            .Returns(_blobQueueMessage);
+
+        _memoryStream = new MemoryStream(10);
+
+        _blobReaderMock
+            .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
+            .Returns(_memoryStream);
+
+        _csvItems = _fixture
+            .Build<CsvDataRow>()
+            .With(x => x.ProducerId, (string)null)
+            .CreateMany(3)
+            .ToList();
+
+        _csvHelperMock
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+            .Returns(_csvItems);
+
+        // Act
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+
+        // Assert
+        _loggerMock.VerifyLog(
+            logger => logger.LogCritical(
+                It.Is<CsvParseException>(e => e.Message.Contains("OrganisationId/ProducerId is null on one or more rows")),
+                It.Is<string>(msg => msg.Contains("An error occurred parsing the CSV file"))),
+            Times.Once);
     }
 
     [TestMethod]
