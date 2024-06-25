@@ -13,7 +13,7 @@ COPY Directory.Build.props ./
 
 RUN dotnet publish SubmissionCheckSplitter.Functions/*.csproj --output /home/site/wwwroot
 
-FROM mcr.microsoft.com/azure-functions/dotnet:4
+FROM mcr.microsoft.com/azure-functions/dotnet:4-dotnet8
 
 # Create a non-root user and set permissions
 RUN groupadd -r dotnet && \
