@@ -1,9 +1,6 @@
 # Use the SDK image to build your application
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS installer-env
 
-# Build requires 3.1 SDK
-COPY --from=mcr.microsoft.com/dotnet/core/sdk:3.1 /usr/share/dotnet /usr/share/dotnet
-
 # Copy everything
 COPY SubmissionCheckSplitter.Functions/. ./SubmissionCheckSplitter.Functions/.
 COPY SubmissionCheckSplitter.Application/. ./SubmissionCheckSplitter.Application/.
