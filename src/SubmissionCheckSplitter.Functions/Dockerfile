@@ -1,8 +1,5 @@
 # Use the SDK image to build your application
-FROM mcr.microsoft.com/dotnet/sdk:6.0 AS installer-env
-
-# Build requires 3.1 SDK
-COPY --from=mcr.microsoft.com/dotnet/core/sdk:3.1 /usr/share/dotnet /usr/share/dotnet
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS installer-env
 
 # Copy everything
 COPY SubmissionCheckSplitter.Functions/. ./SubmissionCheckSplitter.Functions/.
@@ -13,7 +10,7 @@ COPY Directory.Build.props ./
 
 RUN dotnet publish SubmissionCheckSplitter.Functions/*.csproj --output /home/site/wwwroot
 
-FROM mcr.microsoft.com/azure-functions/dotnet:4
+FROM mcr.microsoft.com/azure-functions/dotnet:4-dotnet8
 
 # Create a non-root user and set permissions
 RUN groupadd -r dotnet && \
