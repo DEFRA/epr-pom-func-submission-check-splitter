@@ -47,6 +47,8 @@ variables:
     - name: env
       value: PRD1
     - template: vars/${{ parameters.envToDeploy }}.yaml
+  - name: dotnetVersion
+    value: dotnetVersion8
 # Release tags reference
   - template: pipelines/image-tags/${{ parameters.envToDeploy }}.yaml@ReleaseTags
   - ${{ if eq(parameters.envToDeploy, 'development') }}:
@@ -58,7 +60,7 @@ resources:
       name: defra/epr-webapps-code-deploy-templates
       type: github
       endpoint: defra
-      ref: upgrade-net-8
+      ref: main
 
     # The repo will be reference the repo by a release tag (if the imageTag parameter contains 'release') otherwise it will pull down the main branch.
     - repository: ReleaseTags
@@ -81,3 +83,4 @@ extends:
       targetEnvironment: 'development'
     ${{ else }}:
       targetEnvironment: '$(env)'
+      dotnetVersion: ${{ variables.dotnetVersion }}
