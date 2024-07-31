@@ -47,8 +47,6 @@ variables:
     - name: env
       value: PRD1
     - template: vars/${{ parameters.envToDeploy }}.yaml
-  - name: dotnetVersion
-    value: dotnetVersion8
 # Release tags reference
   - template: pipelines/image-tags/${{ parameters.envToDeploy }}.yaml@ReleaseTags
   - ${{ if eq(parameters.envToDeploy, 'development') }}:
@@ -83,4 +81,3 @@ extends:
       targetEnvironment: 'development'
     ${{ else }}:
       targetEnvironment: '$(env)'
-      dotnetVersion: ${{ variables.dotnetVersion }}
