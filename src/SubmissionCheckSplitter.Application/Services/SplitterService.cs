@@ -230,7 +230,7 @@ public class SplitterService : ISplitterService
             await _validationDataApiClient.GetOrganisation(userOrganisationId);
 
         if (!organisation.IsComplianceScheme &&
-            (organisation.ReferenceNumber != uploadedProducerIds.First() || uploadedProducerIds.Length > 1))
+            (organisation.ReferenceNumber != uploadedProducerIds[0] || uploadedProducerIds.Length > 1))
         {
             throw new OrganisationNotFoundException();
         }
@@ -258,7 +258,7 @@ public class SplitterService : ISplitterService
         foreach (var producerRows in uploadedRows.TakeWhile(_ => _remainingWarningCount > 0))
         {
             var complianceSchemeCheck = producerRows
-                .FirstOrDefault(x => organisationMembers != null && !organisationMembers.MemberOrganisations.Contains(x.ProducerId));
+                .Find(x => organisationMembers != null && !organisationMembers.MemberOrganisations.Contains(x.ProducerId));
 
             if (complianceSchemeCheck == null && organisationMembers != null)
             {
@@ -317,7 +317,7 @@ public class SplitterService : ISplitterService
 
     private async Task AddIssueAndUpdateCountAsync(List<NumberedCsvDataRow> producerRows, string blobName, string errorCode, string issueType)
     {
-        var firstProducerRow = producerRows.First();
+        var firstProducerRow = producerRows[0];
 
         if (issueType == IssueType.Error)
         {
