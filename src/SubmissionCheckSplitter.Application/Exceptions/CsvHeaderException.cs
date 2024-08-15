@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 [ExcludeFromCodeCoverage]
-[Serializable]
 public class CsvHeaderException : Exception
 {
     public CsvHeaderException()
@@ -18,11 +17,6 @@ public class CsvHeaderException : Exception
 
     public CsvHeaderException(string message, Exception inner)
         : base(message, inner)
-    {
-    }
-
-    protected CsvHeaderException(SerializationInfo info, StreamingContext context)
-        : base(info, context)
     {
     }
 }
