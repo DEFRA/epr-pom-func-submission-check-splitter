@@ -11,7 +11,7 @@ to be consumed by the Validation Func.
 ### Prerequisites 
 In order to run the service you will need the following dependencies 
  
-- .NET 6
+- .NET 8
 - Azure CLI
 - Azurite
  
