@@ -5,7 +5,6 @@ using Clients;
 using Clients.Interfaces;
 using Constants;
 using Data.Config;
-using Data.Enums;
 using Data.Models;
 using Data.Models.QueueMessages;
 using Data.Models.SubmissionApi;
@@ -95,7 +94,7 @@ public class SplitterService : ISplitterService
                         blobQueueMessage.BlobName,
                         validationDataApiOptions.Value);
 
-                    if (_errors.Any() && _warnings.Any())
+                    if (_errors.Count > 0 && _warnings.Count > 0)
                     {
                         RemoveComplianceSchemeWarnings();
                     }

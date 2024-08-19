@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using StackExchange.Redis;
-using SubmissionCheckSplitter.Application.Services.Interfaces;
+using SubmissionCheckSplitter.Application.Services;
 using SubmissionCheckSplitter.Data.Config;
 
 [TestClass]
@@ -18,11 +18,11 @@ public class IssueCountServiceTests
      private Mock<IConnectionMultiplexer> _connectionMultiplexerMock = new();
      private Mock<IDatabase> _databaseMock = new();
      private Mock<IOptions<ValidationConfig>> _validationOptionsMock = new();
-     private IIssueCountService _serviceUnderTest;
+     private IssueCountService _serviceUnderTest;
 
      [TestInitialize]
      public void TestInitialize()
-    {
+     {
         _databaseMock.Setup(x => x.StringGetAsync(It.IsAny<RedisKey>(), default))
             .ReturnsAsync(IssuesToProcess);
         _validationOptionsMock.Setup(x => x.Value)
@@ -31,8 +31,8 @@ public class IssueCountServiceTests
             .Setup(x => x.GetDatabase(It.IsAny<int>(), default))
             .Returns(_databaseMock.Object);
 
-        _serviceUnderTest = new SubmissionCheckSplitter.Application.Services.IssueCountService(_connectionMultiplexerMock.Object, _validationOptionsMock.Object);
-    }
+        _serviceUnderTest = new IssueCountService(_connectionMultiplexerMock.Object, _validationOptionsMock.Object);
+     }
 
      [TestMethod]
      public async Task IncrementIssueCountAsync_WhenCalled_SuccessfullyCallsToIncrementCount()
