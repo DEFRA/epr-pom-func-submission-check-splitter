@@ -117,7 +117,7 @@ public class SubmissionApiClientTests
             return false;
         }
 
-        return (report.Errors == null || !report.Errors.Any())
+        return (report.Errors == null || report.Errors.Count == 0)
                && report is
                {
                    DataCount: ProducerCount,
