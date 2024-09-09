@@ -33,4 +33,6 @@ public class CheckSplitterIssue
     public string? QuantityKg { get; set; }
 
     public string? QuantityUnits { get; set; }
+
+    public string? PreviouslyImpactedQuantityUnits { get; set; }
 }

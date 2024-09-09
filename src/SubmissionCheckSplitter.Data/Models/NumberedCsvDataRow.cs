@@ -19,6 +19,7 @@ public class NumberedCsvDataRow : CsvDataRow
         QuantityKg = csvDataRow.QuantityKg;
         QuantityUnits = csvDataRow.QuantityUnits;
         SubmissionPeriod = submissionPeriod;
+        PreviouslyPaidPackagingMaterialUnits = csvDataRow.PreviouslyPaidPackagingMaterialUnits;
     }
 
     public int RowNumber { get; }

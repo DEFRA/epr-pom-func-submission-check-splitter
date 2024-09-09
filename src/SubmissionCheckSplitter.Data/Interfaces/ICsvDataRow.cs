@@ -1,11 +1,9 @@
 ﻿namespace SubmissionCheckSplitter.Data.Models;
 
-using System.Diagnostics.CodeAnalysis;
 using Attributes;
 using CsvHelper.Configuration.Attributes;
 
-[ExcludeFromCodeCoverage]
-public class CsvDataRow
+public interface ICsvDataRow
 {
     [Index(0)]
     [ExpectedHeader("organisation_id")]

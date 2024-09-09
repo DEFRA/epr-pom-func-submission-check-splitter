@@ -191,7 +191,8 @@ public class SplitterService : ISplitterService
             FromHomeNation = firstProducerRow.FromHomeNation,
             ToHomeNation = firstProducerRow.ToHomeNation,
             QuantityKg = firstProducerRow.QuantityKg,
-            QuantityUnits = firstProducerRow.QuantityUnits
+            QuantityUnits = firstProducerRow.QuantityUnits,
+            PreviouslyImpactedQuantityUnits = firstProducerRow.PreviouslyPaidPackagingMaterialUnits
         };
 
         return request;

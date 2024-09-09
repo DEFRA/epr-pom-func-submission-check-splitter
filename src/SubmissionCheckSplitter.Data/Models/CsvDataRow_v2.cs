@@ -5,7 +5,7 @@ using Attributes;
 using CsvHelper.Configuration.Attributes;
 
 [ExcludeFromCodeCoverage]
-public class CsvDataRow
+public class CsvDataRow_v2 : ICsvDataRow
 {
     [Index(0)]
     [ExpectedHeader("organisation_id")]

@@ -23,5 +23,6 @@ public class CsvDataRowMap : ClassMap<CsvDataRow>
         Map(x => x.ToHomeNation).Index(10).TypeConverter<StringConverter>();
         Map(x => x.QuantityKg).Index(11).TypeConverter<StringConverter>();
         Map(x => x.QuantityUnits).Index(12).TypeConverter<StringConverter>();
+        Map(x => x.PreviouslyPaidPackagingMaterialUnits).Index(13).TypeConverter<StringConverter>();
     }
 }
