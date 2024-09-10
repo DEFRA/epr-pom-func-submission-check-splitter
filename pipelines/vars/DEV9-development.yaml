@@ -3,4 +3,4 @@ variables:
   docker.imageName: 'submissionchecksplitter'
   acr.azureContainerRegistryName: 'devrwdinfac1401'
   acr.repositoryName: 'submissionchecksplitterrepository'
-  serviceName: 'devrwdwebfa9403'
+  serviceName: 'devrwdwebfa94mic03'
