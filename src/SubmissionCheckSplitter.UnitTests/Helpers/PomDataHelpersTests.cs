@@ -27,7 +27,7 @@ public class PomDataHelpersTests
     public void Should_add_correct_csv_row_numbers()
     {
         // Act
-        var numberedData = _csvData.ToNumberedCsvDataRows(It.IsAny<string>()).ToList();
+        var numberedData = _csvData.ToNumberedCsvDataRows(It.IsAny<string>(), It.IsAny<bool>()).ToList();
 
         // Assert
         for (var i = 0; i < numberedData.Count; i++)
@@ -44,7 +44,7 @@ public class PomDataHelpersTests
     public void Should_add_correct_csv_submission_period()
     {
         // Act
-        var numberedData = _csvData.ToNumberedCsvDataRows(SubmissionPeriod).ToList();
+        var numberedData = _csvData.ToNumberedCsvDataRows(SubmissionPeriod, false).ToList();
 
         // Assert
         for (var i = 0; i < numberedData.Count; i++)

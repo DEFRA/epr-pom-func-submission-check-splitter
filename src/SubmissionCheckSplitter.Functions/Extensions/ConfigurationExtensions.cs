@@ -12,6 +12,7 @@ public static class ConfigurationExtensions
 {
     public static IServiceCollection AddConfig(this IServiceCollection services)
     {
+        services.ConfigureSection<CsvDataFileConfig>(CsvDataFileConfig.Section);
         services.ConfigureSection<ServiceBusConfig>(ServiceBusConfig.Section);
         services.ConfigureSection<StorageAccountConfig>(StorageAccountConfig.Section);
         services.ConfigureSection<SubmissionApiConfig>(SubmissionApiConfig.Section);

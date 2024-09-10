@@ -2,7 +2,7 @@
 
 public class NumberedCsvDataRow : CsvDataRow
 {
-    public NumberedCsvDataRow(int rowNumber, string submissionPeriod, CsvDataRow csvDataRow)
+    public NumberedCsvDataRow(int rowNumber, string submissionPeriod, CsvDataRow csvDataRow, bool isLatest)
     {
         RowNumber = rowNumber;
         ProducerId = csvDataRow.ProducerId;
@@ -19,9 +19,18 @@ public class NumberedCsvDataRow : CsvDataRow
         QuantityKg = csvDataRow.QuantityKg;
         QuantityUnits = csvDataRow.QuantityUnits;
         SubmissionPeriod = submissionPeriod;
+        PreviouslyPaidPackagingMaterialUnits = csvDataRow.PreviouslyPaidPackagingMaterialUnits;
+        IsLatest = isLatest;
     }
 
     public int RowNumber { get; }
 
     public string SubmissionPeriod { get; }
+
+    public bool IsLatest { get; set; } = true;
+
+    public override bool ShouldSerializePreviouslyPaidPackagingMaterialUnits()
+    {
+        return IsLatest;
+    }
 }

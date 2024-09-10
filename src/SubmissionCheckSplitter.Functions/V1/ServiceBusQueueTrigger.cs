@@ -13,13 +13,16 @@ public class ServiceBusQueueTrigger
     private readonly ILogger<ServiceBusQueueTrigger> _logger;
     private readonly IOptions<ValidationDataApiConfig> _validationDataApiOptions;
     private readonly IOptions<ValidationConfig> _validationOptions;
+    private readonly IOptions<CsvDataFileConfig> _csvDataFileConfigOptions;
 
     public ServiceBusQueueTrigger(
         ISplitterService splitterService,
         ILogger<ServiceBusQueueTrigger> logger,
         IOptions<ValidationDataApiConfig> validationDataApiOptions,
-        IOptions<ValidationConfig> validationOptions)
+        IOptions<ValidationConfig> validationOptions,
+        IOptions<CsvDataFileConfig> csvDataFileConfigOptions)
     {
+        _csvDataFileConfigOptions = csvDataFileConfigOptions;
         _splitterService = splitterService;
         _logger = logger;
         _validationDataApiOptions = validationDataApiOptions;
@@ -31,7 +34,7 @@ public class ServiceBusQueueTrigger
     {
         _logger.LogEnter();
 
-        await _splitterService.ProcessServiceBusMessage(message, _validationDataApiOptions, _validationOptions);
+        await _splitterService.ProcessServiceBusMessage(message, _validationDataApiOptions, _validationOptions, _csvDataFileConfigOptions);
 
         _logger.LogExit();
     }
