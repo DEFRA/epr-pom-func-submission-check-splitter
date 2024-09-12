@@ -27,7 +27,7 @@ public class NumberedCsvDataRow : CsvDataRow
 
     public string SubmissionPeriod { get; }
 
-    public bool IsLatest { get; set; } = true;
+    public bool IsLatest { get; set; }
 
     public override bool ShouldSerializePreviouslyPaidPackagingMaterialUnits()
     {
