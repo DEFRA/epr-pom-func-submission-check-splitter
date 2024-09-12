@@ -58,4 +58,13 @@ public class CsvDataRow
     [Index(12)]
     [ExpectedHeader("packaging_material_units")]
     public string QuantityUnits { get; init; }
+
+    [Index(13)]
+    [ExpectedHeader("previously_paid_packaging_material_units")]
+    public string PreviouslyPaidPackagingMaterialUnits { get; set; }
+
+    public virtual bool ShouldSerializePreviouslyPaidPackagingMaterialUnits()
+    {
+        return false;
+    }
 }

@@ -41,7 +41,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, true);
 
         // Assert
         result.Should().AllSatisfy(x =>
@@ -59,6 +59,7 @@ public class CsvStreamParserTests
             x.ToHomeNation.Should().NotBeNullOrWhiteSpace();
             x.QuantityKg.Should().NotBeNullOrWhiteSpace();
             x.QuantityUnits.Should().NotBeNullOrWhiteSpace();
+            x.PreviouslyPaidPackagingMaterialUnits.Should().NotBeNullOrWhiteSpace();
         });
     }
 
@@ -82,6 +83,7 @@ public class CsvStreamParserTests
             .With(x => x.ToHomeNation, string.Empty)
             .With(x => x.QuantityKg, string.Empty)
             .With(x => x.QuantityUnits, string.Empty)
+            .With(x => x.PreviouslyPaidPackagingMaterialUnits, string.Empty)
             .CreateMany(2);
         var csvDataRows = items.Prepend(expectedHeaders);
 
@@ -94,7 +96,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, true);
 
         // Assert
         result.Should().AllSatisfy(x =>
@@ -112,6 +114,7 @@ public class CsvStreamParserTests
             x.ToHomeNation.Should().BeNull();
             x.QuantityKg.Should().BeNull();
             x.QuantityUnits.Should().BeNull();
+            x.PreviouslyPaidPackagingMaterialUnits.Should().BeNull();
         });
     }
 
@@ -134,7 +137,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, true);
 
         // Assert
         result.Should().AllSatisfy(x =>
@@ -152,6 +155,7 @@ public class CsvStreamParserTests
             x.ToHomeNation.Should().Be(items.First().ToHomeNation);
             x.QuantityKg.Should().Be(items.First().QuantityKg);
             x.QuantityUnits.Should().Be(items.First().QuantityUnits);
+            x.PreviouslyPaidPackagingMaterialUnits.Should().Be(items.First().PreviouslyPaidPackagingMaterialUnits);
         });
     }
 
@@ -172,7 +176,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act / Assert
-        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream));
+        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false));
     }
 
     [TestMethod]
@@ -194,7 +198,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act / Assert
-        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream));
+        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false));
     }
 
     [TestMethod]
@@ -215,7 +219,8 @@ public class CsvStreamParserTests
             FromHomeNation = "from_country",
             ToHomeNation = "to_country",
             QuantityKg = "packaging_material_weight",
-            QuantityUnits = "packaging_material_units"
+            QuantityUnits = "packaging_material_units",
+            PreviouslyPaidPackagingMaterialUnits = "previously_paid_packaging_material_units"
         };
         var items = new List<CsvDataRow>
         {
@@ -231,7 +236,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act / Assert
-        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream));
+        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false));
     }
 
     private static CsvDataRow GetRequiredHeaders(bool isValidHeader)
@@ -250,7 +255,8 @@ public class CsvStreamParserTests
             FromHomeNation = "from_country",
             ToHomeNation = "to_country",
             QuantityKg = "packaging_material_weight",
-            QuantityUnits = "packaging_material_units"
+            QuantityUnits = "packaging_material_units",
+            PreviouslyPaidPackagingMaterialUnits = "previously_paid_packaging_material_units"
         };
     }
 
@@ -270,7 +276,8 @@ public class CsvStreamParserTests
             FromHomeNation = "UK",
             ToHomeNation = "SC",
             QuantityKg = "1234",
-            QuantityUnits = "1000"
+            QuantityUnits = "1000",
+            PreviouslyPaidPackagingMaterialUnits = "100"
         };
     }
 }

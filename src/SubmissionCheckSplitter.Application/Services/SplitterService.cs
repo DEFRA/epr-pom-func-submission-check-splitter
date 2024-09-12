@@ -1,5 +1,6 @@
 ﻿namespace SubmissionCheckSplitter.Application.Services;
 
+using System.Linq.Expressions;
 using System.Text.RegularExpressions;
 using Clients;
 using Clients.Interfaces;
@@ -31,6 +32,7 @@ public class SplitterService : ISplitterService
     private List<CheckSplitterError> _errors = new();
     private int _remainingWarningCount;
     private int _remainingErrorCount;
+    private bool _isLatest;
 
     public SplitterService(
         IDequeueProvider dequeueProvider,
@@ -52,21 +54,22 @@ public class SplitterService : ISplitterService
         _logger = logger;
     }
 
-    public async Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions, IOptions<ValidationConfig> validationOptions)
+    public async Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions, IOptions<ValidationConfig> validationOptions, IOptions<CsvDataFileConfig> csvDataFileConfigOptions)
     {
         var blobQueueMessage = _dequeueProvider.GetMessageFromJson<BlobQueueMessage>(message);
         var blobMemoryStream = _blobReader.DownloadBlobToStream(blobQueueMessage.BlobName);
+        _isLatest = csvDataFileConfigOptions.Value.IsLatest;
 
         List<string> errors = null;
         var numberOfRecords = 0;
 
         try
         {
-            var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream);
+            var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream, _isLatest);
 
             if (csvItems.Any())
             {
-                var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod);
+                var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod, _isLatest);
 
                 var groupedByProducer = numberedCsvItems
                     .GroupBy(g => g.ProducerId)
@@ -171,7 +174,14 @@ public class SplitterService : ISplitterService
         return $"{blobName}:{issueType}";
     }
 
-    private static T CreateIssueEventRequest<T>(NumberedCsvDataRow firstProducerRow, string blobName, string errorCode)
+    private static bool CheckProducerIsValidFormat(KeyValuePair<string, List<NumberedCsvDataRow>> producer)
+    {
+        var pattern = "^[0-9]{6}$";
+        var match = Regex.Match(producer.Key, pattern, RegexOptions.None, TimeSpan.FromSeconds(2));
+        return match.Success;
+    }
+
+    private T CreateIssueEventRequest<T>(NumberedCsvDataRow firstProducerRow, string blobName, string errorCode)
         where T : CheckSplitterIssue, new()
     {
         var request = new T()
@@ -191,17 +201,11 @@ public class SplitterService : ISplitterService
             FromHomeNation = firstProducerRow.FromHomeNation,
             ToHomeNation = firstProducerRow.ToHomeNation,
             QuantityKg = firstProducerRow.QuantityKg,
-            QuantityUnits = firstProducerRow.QuantityUnits
+            QuantityUnits = firstProducerRow.QuantityUnits,
+            PreviouslyImpactedQuantityUnits = _isLatest ? firstProducerRow.PreviouslyPaidPackagingMaterialUnits : null
         };
 
         return request;
-    }
-
-    private static bool CheckProducerIsValidFormat(KeyValuePair<string, List<NumberedCsvDataRow>> producer)
-    {
-        var pattern = "^[0-9]{6}$";
-        var match = Regex.Match(producer.Key, pattern, RegexOptions.None, TimeSpan.FromSeconds(2));
-        return match.Success;
     }
 
     private void RemoveComplianceSchemeWarnings()
@@ -305,7 +309,7 @@ public class SplitterService : ISplitterService
             {
                 if (!organisations.ReferenceNumbers.Contains(producer.Key))
                 {
-                   await AddIssueAndUpdateCountAsync(producer.Value, blobName, ErrorCode.OrganisationDoesNotExistExistErrorCode, IssueType.Error);
+                    await AddIssueAndUpdateCountAsync(producer.Value, blobName, ErrorCode.OrganisationDoesNotExistExistErrorCode, IssueType.Error);
                 }
             }
         }

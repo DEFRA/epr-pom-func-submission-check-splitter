@@ -1,5 +1,7 @@
 ﻿namespace SubmissionCheckSplitter.Application.Helpers;
 
+using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using ClassMaps;
@@ -16,7 +18,7 @@ public class CsvStreamParser : ICsvStreamParser
         HasHeaderRecord = true
     };
 
-    public IList<T> GetItemsFromCsvStream<T>(MemoryStream memoryStream)
+    public IList<T> GetItemsFromCsvStream<T>(MemoryStream memoryStream, bool isLatest = false)
     {
         memoryStream.Position = 0;
         using var reader = new StreamReader(memoryStream);
@@ -24,14 +26,12 @@ public class CsvStreamParser : ICsvStreamParser
 
         try
         {
-            csv.Context.RegisterClassMap<CsvDataRowMap>();
+            csv.Context.RegisterClassMap(new CsvDataRowMap(isLatest));
             csv.Read();
             csv.ReadHeader();
 
             var header = csv.HeaderRecord;
-            var expectedHeaders = typeof(CsvDataRow).GetProperties()
-                .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader)
-                .ToList();
+            var expectedHeaders = GetExpectedHeaders(isLatest);
 
             if (header != null && !header.SequenceEqual(expectedHeaders))
             {
@@ -44,5 +44,16 @@ public class CsvStreamParser : ICsvStreamParser
         {
             throw new CsvParseException("Error parsing CSV", ex);
         }
+    }
+
+    private static List<string> GetExpectedHeaders(bool isLatest)
+    {
+        var headers = typeof(CsvDataRow).GetProperties()
+                .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader).ToList();
+
+        var name = typeof(CsvDataRow).GetProperty(nameof(CsvDataRow.PreviouslyPaidPackagingMaterialUnits))
+                              .GetCustomAttribute<ExpectedHeaderAttribute>();
+
+        return isLatest ? headers : headers.Where(z => z != name.ExpectedHeader).ToList();
     }
 }

@@ -40,6 +40,8 @@ public class SplitterServiceTests
     private readonly Mock<ILogger<SplitterService>> _loggerMock = new();
     private readonly Mock<IOptions<ValidationDataApiConfig>> _validationDataApiConfigMock = new();
     private readonly Mock<IOptions<ValidationConfig>> _validationConfigMock = new();
+    private readonly Mock<IOptions<CsvDataFileConfig>> _csvDataFileMockConfig = new();
+
     private SplitterService _systemUnderTest;
 
     private BlobQueueMessage? _blobQueueMessage;
@@ -82,6 +84,9 @@ public class SplitterServiceTests
         var validationConfig = new ValidationConfig { MaxIssuesToProcess = 1000 };
         _validationConfigMock.Setup(ap => ap.Value).Returns(validationConfig);
 
+        var csvDataFileConfig = new CsvDataFileConfig { IsLatest = true };
+        _csvDataFileMockConfig.Setup(ap => ap.Value).Returns(csvDataFileConfig);
+
         _blobQueueMessage = _fixture.Create<BlobQueueMessage>();
         _serializedQueueMessage = JsonConvert.SerializeObject(_blobQueueMessage);
 
@@ -94,7 +99,7 @@ public class SplitterServiceTests
             .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
             .Returns(_memoryStream);
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, false))
             .Returns(_csvItems);
     }
 
@@ -148,16 +153,16 @@ public class SplitterServiceTests
             .ToList();
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true))
             .Returns(_csvItems);
 
         // Act
-        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _dequeueProviderMock.Verify(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage), Times.Once);
         _blobReaderMock.Verify(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName), Times.Once);
-        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream), Times.Once);
+        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true), Times.Once);
 
         _submissionApiClientMock
             .Verify(
@@ -172,7 +177,7 @@ public class SplitterServiceTests
                     It.IsAny<List<string>>()),
                 Times.Once);
 
-        var numberedCsvItems = _csvItems.ToNumberedCsvDataRows(SubmissionPeriod).ToList();
+        var numberedCsvItems = _csvItems.ToNumberedCsvDataRows(SubmissionPeriod, false).ToList();
         var expectedProducer1 = numberedCsvItems.Where(x => x.ProducerId == producerId).ToList();
         var expectedProducer2 = numberedCsvItems.Where(x => x.ProducerId == producerIdTwo).ToList();
 
@@ -209,16 +214,16 @@ public class SplitterServiceTests
             .Returns(_memoryStream);
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Throws(new CsvParseException("test"));
 
         // Act
-        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // assert
         _dequeueProviderMock.Verify(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage), Times.Once);
         _blobReaderMock.Verify(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName), Times.Once);
-        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream), Times.Once);
+        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true), Times.Once);
 
         _submissionApiClientMock
             .Verify(
@@ -280,11 +285,11 @@ public class SplitterServiceTests
             .ToList();
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, false))
             .Returns(_csvItems);
 
         // Act
-        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _loggerMock.VerifyLog(
@@ -323,11 +328,11 @@ public class SplitterServiceTests
             .ToList();
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, false))
             .Returns(csvItems);
 
         // Act
-        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _loggerMock.VerifyLog(logger => logger.LogCritical("An unexpected error occurred processing the message"));
@@ -351,11 +356,11 @@ public class SplitterServiceTests
             .Returns(_memoryStream);
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true))
             .Returns(new List<CsvDataRow>());
 
         // Act
-        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _submissionApiClientMock.Verify(
@@ -401,11 +406,11 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _serviceBusQueueClientMock.Verify(
@@ -442,7 +447,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = "1" }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
@@ -452,7 +457,7 @@ public class SplitterServiceTests
             .Returns(new ValidationDataApiConfig { IsEnabled = true });
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _loggerMock.Verify(
@@ -491,7 +496,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = "1" }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
@@ -509,7 +514,7 @@ public class SplitterServiceTests
             .ReturnsAsync(10);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _submissionApiClientMock.Verify(
@@ -549,7 +554,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = "1" },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
@@ -559,7 +564,7 @@ public class SplitterServiceTests
             .Returns(new ValidationDataApiConfig { IsEnabled = true });
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _loggerMock.Verify(
@@ -588,7 +593,7 @@ public class SplitterServiceTests
             .ThrowsAsync(new SubmissionApiClientException("Test Exception"));
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _loggerMock.VerifyLog(logger => logger.LogError(It.IsAny<SubmissionApiClientException>(), It.IsAny<string>()), Times.Once);
@@ -624,11 +629,11 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _validationDataApiClientMock.Verify(x => x.GetOrganisation(It.IsAny<string>()), Times.Never);
@@ -689,11 +694,11 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _validationDataApiClientMock.Verify(x => x.GetOrganisation(It.IsAny<string>()), Times.AtLeastOnce());
@@ -732,14 +737,14 @@ public class SplitterServiceTests
             new() { ProducerId = "1" },
             new() { ProducerId = "2" }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         _validationDataApiConfigMock.Setup(config => config.Value)
             .Returns(new ValidationDataApiConfig { IsEnabled = true });
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _loggerMock.Verify(
@@ -789,11 +794,11 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _serviceBusQueueClientMock.Verify(
@@ -857,11 +862,11 @@ public class SplitterServiceTests
             new CsvDataRow { ProducerId = validProducerId },
             new CsvDataRow { ProducerId = invalidProducerId }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _validationDataApiClientMock.Verify(x => x.GetValidOrganisations(
@@ -919,11 +924,11 @@ public class SplitterServiceTests
             new CsvDataRow { ProducerId = memberId },
             new CsvDataRow { ProducerId = notMemberId }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _validationDataApiClientMock.Verify(x => x.GetValidOrganisations(
@@ -975,11 +980,11 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = validProducerIds[0] }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _validationDataApiClientMock.Verify(
@@ -1022,11 +1027,11 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = invalidProducerIds[0] }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _validationDataApiClientMock.Verify(
@@ -1086,11 +1091,11 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
             .Returns(_csvItems);
 
         // Act
-        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object);
+        await _systemUnderTest.ProcessServiceBusMessage(serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
         _serviceBusQueueClientMock.Verify(
