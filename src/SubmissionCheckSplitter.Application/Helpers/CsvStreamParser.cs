@@ -46,7 +46,7 @@ public class CsvStreamParser : ICsvStreamParser
         }
     }
 
-    private IEnumerable<string> GetExpectedHeaders(bool isLatest)
+    private static List<string> GetExpectedHeaders(bool isLatest)
     {
         var headers = typeof(CsvDataRow).GetProperties()
                 .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader).ToList();
