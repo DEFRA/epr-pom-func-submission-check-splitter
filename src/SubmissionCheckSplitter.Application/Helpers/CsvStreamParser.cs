@@ -1,8 +1,7 @@
 ﻿namespace SubmissionCheckSplitter.Application.Helpers;
 
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using ClassMaps;
 using CsvHelper;
@@ -31,14 +30,13 @@ public class CsvStreamParser : ICsvStreamParser
             csv.ReadHeader();
 
             var header = csv.HeaderRecord;
-            var expectedHeaders = GetExpectedHeaders(isLatest);
 
-            if (header != null && !header.SequenceEqual(expectedHeaders))
+            if (header != null && (header.SequenceEqual(GetExpectedHeaders().HeaderWith13Columns) || header.SequenceEqual(GetExpectedHeaders().HeadersWith14Columns)))
             {
-                throw new CsvHeaderException("The CSV file header is invalid.");
+                return csv.GetRecords<T>().ToList();
             }
 
-            return csv.GetRecords<T>().ToList();
+            throw new CsvHeaderException("The CSV file header is invalid.");
         }
         catch (Exception ex)
         {
@@ -46,7 +44,7 @@ public class CsvStreamParser : ICsvStreamParser
         }
     }
 
-    private static List<string> GetExpectedHeaders(bool isLatest)
+    private static (List<string> HeaderWith13Columns, List<string> HeadersWith14Columns) GetExpectedHeaders()
     {
         var headers = typeof(CsvDataRow).GetProperties()
                 .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader).ToList();
@@ -54,6 +52,6 @@ public class CsvStreamParser : ICsvStreamParser
         var name = typeof(CsvDataRow).GetProperty(nameof(CsvDataRow.TransitionalPackagingUnits))
                               .GetCustomAttribute<ExpectedHeaderAttribute>();
 
-        return isLatest ? headers : headers.Where(z => z != name.ExpectedHeader).ToList();
+        return (HeaderWith13Columns: headers.Where(z => z != name.ExpectedHeader).ToList(), HeadersWith14Columns: headers);
     }
 }
