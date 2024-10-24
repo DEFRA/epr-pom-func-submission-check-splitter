@@ -51,7 +51,7 @@ public class CsvStreamParser : ICsvStreamParser
         var headers = typeof(CsvDataRow).GetProperties()
                 .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader).ToList();
 
-        var name = typeof(CsvDataRow).GetProperty(nameof(CsvDataRow.PreviouslyPaidPackagingMaterialUnits))
+        var name = typeof(CsvDataRow).GetProperty(nameof(CsvDataRow.TransitionalPackagingUnits))
                               .GetCustomAttribute<ExpectedHeaderAttribute>();
 
         return isLatest ? headers : headers.Where(z => z != name.ExpectedHeader).ToList();

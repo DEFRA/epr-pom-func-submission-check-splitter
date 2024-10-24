@@ -26,7 +26,7 @@ public class CsvDataRowMap : ClassMap<CsvDataRow>
 
         if (isLatest)
         {
-            Map(x => x.PreviouslyPaidPackagingMaterialUnits).Index(13).TypeConverter<StringConverter>();
+            Map(x => x.TransitionalPackagingUnits).Index(13).TypeConverter<StringConverter>();
         }
     }
 }

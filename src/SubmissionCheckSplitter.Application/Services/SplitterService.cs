@@ -202,7 +202,7 @@ public class SplitterService : ISplitterService
             ToHomeNation = firstProducerRow.ToHomeNation,
             QuantityKg = firstProducerRow.QuantityKg,
             QuantityUnits = firstProducerRow.QuantityUnits,
-            PreviouslyImpactedQuantityUnits = _isLatest ? firstProducerRow.PreviouslyPaidPackagingMaterialUnits : null
+            PreviouslyImpactedQuantityUnits = _isLatest ? firstProducerRow.TransitionalPackagingUnits : null
         };
 
         return request;
