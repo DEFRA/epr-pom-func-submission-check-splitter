@@ -60,7 +60,7 @@ public class CsvDataRow
     public string QuantityUnits { get; init; }
 
     [Index(13)]
-    [ExpectedHeader("previously_paid_packaging_material_units")]
+    [ExpectedHeader("transitional_packaging_units")]
     public string TransitionalPackagingUnits { get; set; }
 
     public virtual bool ShouldSerializeTransitionalPackagingUnits()

@@ -220,7 +220,7 @@ public class CsvStreamParserTests
             ToHomeNation = "to_country",
             QuantityKg = "packaging_material_weight",
             QuantityUnits = "packaging_material_units",
-            TransitionalPackagingUnits = "previously_paid_packaging_material_units"
+            TransitionalPackagingUnits = "transitional_packaging_units"
         };
         var items = new List<CsvDataRow>
         {
@@ -256,7 +256,7 @@ public class CsvStreamParserTests
             ToHomeNation = "to_country",
             QuantityKg = "packaging_material_weight",
             QuantityUnits = "packaging_material_units",
-            TransitionalPackagingUnits = "previously_paid_packaging_material_units"
+            TransitionalPackagingUnits = "transitional_packaging_units"
         };
     }
 
