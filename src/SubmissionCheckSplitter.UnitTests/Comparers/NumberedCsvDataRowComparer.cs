@@ -21,7 +21,7 @@ public class NumberedCsvDataRowComparer : IEqualityComparer<NumberedCsvDataRow>
                          && x.ToHomeNation == y.ToHomeNation
                          && x.QuantityKg == y.QuantityKg
                          && x.QuantityUnits == y.QuantityUnits
-                         && x.PreviouslyPaidPackagingMaterialUnits == y.PreviouslyPaidPackagingMaterialUnits;
+                         && x.TransitionalPackagingUnits == y.TransitionalPackagingUnits;
     }
 
     public int GetHashCode(NumberedCsvDataRow obj) => obj.GetHashCode();

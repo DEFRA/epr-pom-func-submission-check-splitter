@@ -19,7 +19,7 @@ public class NumberedCsvDataRow : CsvDataRow
         QuantityKg = csvDataRow.QuantityKg;
         QuantityUnits = csvDataRow.QuantityUnits;
         SubmissionPeriod = submissionPeriod;
-        PreviouslyPaidPackagingMaterialUnits = csvDataRow.PreviouslyPaidPackagingMaterialUnits;
+        TransitionalPackagingUnits = csvDataRow.TransitionalPackagingUnits;
         IsLatest = isLatest;
     }
 
@@ -29,7 +29,7 @@ public class NumberedCsvDataRow : CsvDataRow
 
     public bool IsLatest { get; set; }
 
-    public override bool ShouldSerializePreviouslyPaidPackagingMaterialUnits()
+    public override bool ShouldSerializeTransitionalPackagingUnits()
     {
         return IsLatest;
     }

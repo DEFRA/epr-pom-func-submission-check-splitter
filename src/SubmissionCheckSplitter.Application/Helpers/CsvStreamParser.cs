@@ -1,8 +1,7 @@
 ﻿namespace SubmissionCheckSplitter.Application.Helpers;
 
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using ClassMaps;
 using CsvHelper;
@@ -13,6 +12,8 @@ using Exceptions;
 
 public class CsvStreamParser : ICsvStreamParser
 {
+    private const int New14ColumnCount = 14;
+
     private static CsvConfiguration CsvConfiguration => new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true
@@ -26,19 +27,18 @@ public class CsvStreamParser : ICsvStreamParser
 
         try
         {
-            csv.Context.RegisterClassMap(new CsvDataRowMap(isLatest));
             csv.Read();
             csv.ReadHeader();
-
             var header = csv.HeaderRecord;
-            var expectedHeaders = GetExpectedHeaders(isLatest);
 
-            if (header != null && !header.SequenceEqual(expectedHeaders))
+            if (header != null && (header.SequenceEqual(GetExpectedHeaders().HeaderWith13Columns) || header.SequenceEqual(GetExpectedHeaders().HeadersWith14Columns)))
             {
-                throw new CsvHeaderException("The CSV file header is invalid.");
+                isLatest = header.Length == New14ColumnCount;
+                csv.Context.RegisterClassMap(new CsvDataRowMap(isLatest));
+                return csv.GetRecords<T>().ToList();
             }
 
-            return csv.GetRecords<T>().ToList();
+            throw new CsvHeaderException("The CSV file header is invalid.");
         }
         catch (Exception ex)
         {
@@ -46,14 +46,14 @@ public class CsvStreamParser : ICsvStreamParser
         }
     }
 
-    private static List<string> GetExpectedHeaders(bool isLatest)
+    private static (List<string> HeaderWith13Columns, List<string> HeadersWith14Columns) GetExpectedHeaders()
     {
         var headers = typeof(CsvDataRow).GetProperties()
                 .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader).ToList();
 
-        var name = typeof(CsvDataRow).GetProperty(nameof(CsvDataRow.PreviouslyPaidPackagingMaterialUnits))
+        var name = typeof(CsvDataRow).GetProperty(nameof(CsvDataRow.TransitionalPackagingUnits))
                               .GetCustomAttribute<ExpectedHeaderAttribute>();
 
-        return isLatest ? headers : headers.Where(z => z != name.ExpectedHeader).ToList();
+        return (HeaderWith13Columns: headers.Where(z => z != name.ExpectedHeader).ToList(), HeadersWith14Columns: headers);
     }
 }
