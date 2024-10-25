@@ -12,6 +12,8 @@ using Exceptions;
 
 public class CsvStreamParser : ICsvStreamParser
 {
+    private const int New14ColumnCount = 14;
+
     private static CsvConfiguration CsvConfiguration => new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true
@@ -25,14 +27,14 @@ public class CsvStreamParser : ICsvStreamParser
 
         try
         {
-            csv.Context.RegisterClassMap(new CsvDataRowMap(isLatest));
             csv.Read();
             csv.ReadHeader();
-
             var header = csv.HeaderRecord;
 
             if (header != null && (header.SequenceEqual(GetExpectedHeaders().HeaderWith13Columns) || header.SequenceEqual(GetExpectedHeaders().HeadersWith14Columns)))
             {
+                isLatest = header.Length == New14ColumnCount;
+                csv.Context.RegisterClassMap(new CsvDataRowMap(isLatest));
                 return csv.GetRecords<T>().ToList();
             }
 

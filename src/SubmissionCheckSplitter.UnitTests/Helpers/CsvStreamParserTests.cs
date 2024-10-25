@@ -1,6 +1,7 @@
 ﻿namespace SubmissionCheckSplitter.UnitTests.Helpers;
 
 using System.Globalization;
+using System.Text;
 using Application.Exceptions;
 using Application.Helpers;
 using AutoFixture;
@@ -239,6 +240,80 @@ public class CsvStreamParserTests
         Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false));
     }
 
+    [TestMethod]
+    public void GetItemsFromCsvStream_MapsCsvProperties_When13ColumnsAnd13Values()
+    {
+        // Arrange
+        var memoryStream = Generate13Column13ValueStream();
+        string expectedValueTransitionalPackagingUnits = null;
+
+        // Act
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+
+        // Assert
+        Assert.IsNotNull(result);
+        result.Should().AllSatisfy(x =>
+        {
+            x.TransitionalPackagingUnits.Should().Be(expectedValueTransitionalPackagingUnits);
+        });
+    }
+
+    [TestMethod]
+    public void GetItemsFromCsvStream_MapsCsvProperties_When14ColumnsAnd14Values()
+    {
+        // Arrange
+        var memoryStream = Generate14Column14ValueStream();
+        string expectedValueTransitionalPackagingUnits = "100";
+
+        // Act
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+
+        // Assert
+        Assert.IsNotNull(result);
+        result.Should().AllSatisfy(x =>
+        {
+            x.TransitionalPackagingUnits.Should().Be(expectedValueTransitionalPackagingUnits);
+        });
+    }
+
+    [TestMethod]
+    [ExpectedException(typeof(CsvParseException))]
+    public void GetItemsFromCsvStream_ThrowsException_When14ColumnsAnd13Values()
+    {
+        // Arrange
+        var memoryStream = Generate14Column13ValueStream();
+        string expectedValueTransitionalPackagingUnits = null;
+
+        // Act
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+
+        // Assert
+        Assert.IsNotNull(result);
+        result.Should().AllSatisfy(x =>
+        {
+            x.TransitionalPackagingUnits.Should().Be(expectedValueTransitionalPackagingUnits);
+        });
+    }
+
+    [TestMethod]
+    [ExpectedException(typeof(CsvParseException))]
+    public void GetItemsFromCsvStream_ThrowsException_WhenLessThan13Columns()
+    {
+        // Arrange
+        var memoryStream = Generate12Column12ValueStream();
+        string expectedValueTransitionalPackagingUnits = null;
+
+        // Act
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+
+        // Assert
+        Assert.IsNotNull(result);
+        result.Should().AllSatisfy(x =>
+        {
+            x.TransitionalPackagingUnits.Should().Be(expectedValueTransitionalPackagingUnits);
+        });
+    }
+
     private static CsvDataRow GetRequiredHeaders(bool isValidHeader)
     {
         return new CsvDataRow
@@ -279,5 +354,61 @@ public class CsvStreamParserTests
             QuantityUnits = "1000",
             TransitionalPackagingUnits = "100"
         };
+    }
+
+    private static MemoryStream Generate13Column13ValueStream()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("organisation_id,subsidiary_id,organisation_size,submission_period,packaging_activity,packaging_type,packaging_class,packaging_material,packaging_material_subtype,from_country,to_country,packaging_material_weight,packaging_material_units");
+        sb.AppendLine("100249,A1001,L,2023-P1,SO,HDC,,PL,,,,125000,125000");
+
+        var stream = new MemoryStream();
+        var writer = new StreamWriter(stream);
+        writer.Write(sb.ToString());
+        writer.Flush();
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream Generate14Column14ValueStream()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("organisation_id,subsidiary_id,organisation_size,submission_period,packaging_activity,packaging_type,packaging_class,packaging_material,packaging_material_subtype,from_country,to_country,packaging_material_weight,packaging_material_units,transitional_packaging_units");
+        sb.AppendLine("100249,A1001,L,2023-P1,SO,HDC,,PL,,,,125000,125000,100");
+
+        var stream = new MemoryStream();
+        var writer = new StreamWriter(stream);
+        writer.Write(sb.ToString());
+        writer.Flush();
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream Generate14Column13ValueStream()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("organisation_id,subsidiary_id,organisation_size,submission_period,packaging_activity,packaging_type,packaging_class,packaging_material,packaging_material_subtype,from_country,to_country,packaging_material_weight,packaging_material_units,transitional_packaging_units");
+        sb.AppendLine("100249,A1001,L,2023-P1,SO,HDC,,PL,,,,125000,125000");
+
+        var stream = new MemoryStream();
+        var writer = new StreamWriter(stream);
+        writer.Write(sb.ToString());
+        writer.Flush();
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream Generate12Column12ValueStream()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("organisation_id,subsidiary_id,organisation_size,submission_period,packaging_activity,packaging_type,packaging_class,packaging_material,packaging_material_subtype,from_country,to_country,packaging_material_weight");
+        sb.AppendLine("100249,A1001,L,2023-P1,SO,HDC,,PL,,,,");
+
+        var stream = new MemoryStream();
+        var writer = new StreamWriter(stream);
+        writer.Write(sb.ToString());
+        writer.Flush();
+        stream.Position = 0;
+        return stream;
     }
 }
