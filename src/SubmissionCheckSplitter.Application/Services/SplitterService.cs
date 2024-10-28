@@ -66,7 +66,11 @@ public class SplitterService : ISplitterService
         {
             var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream, _isLatest);
 
-            if (csvItems.Any())
+            if (csvItems.Any(c => c.ProducerId == null))
+            {
+                throw new CsvFileEmptyValueException("OrganisationId/ProducerId is null on one or more rows");
+            }
+            else if (csvItems.Any())
             {
                 var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod, _isLatest);
 
@@ -138,6 +142,15 @@ public class SplitterService : ISplitterService
             errors = new List<string>
             {
                 ErrorCode.CsvParseExceptionErrorCode,
+            };
+        }
+        catch (CsvFileEmptyValueException exception)
+        {
+            _logger.LogCritical(exception, "Some required fields are empty");
+
+            errors = new List<string>
+            {
+                ErrorCode.CsvFileEmptyValueErrorCode,
             };
         }
         catch (Exception exception)
