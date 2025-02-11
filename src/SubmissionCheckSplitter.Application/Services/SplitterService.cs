@@ -57,18 +57,18 @@ public class SplitterService : ISplitterService
     {
         var blobQueueMessage = _dequeueProvider.GetMessageFromJson<BlobQueueMessage>(message);
         var blobMemoryStream = _blobReader.DownloadBlobToStream(blobQueueMessage.BlobName);
-        _isLatest = csvDataFileConfigOptions.Value.IsLatest;
+        _isLatest = csvDataFileConfigOptions.Value.EnableTransitionalPackagingUnitsColumn;
 
         List<string> errors = null;
         var numberOfRecords = 0;
 
         try
         {
-            var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream, _isLatest);
+            var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream, csvDataFileConfigOptions.Value);
 
             if (csvItems.Any())
             {
-                var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod, _isLatest);
+                var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod, csvDataFileConfigOptions.Value);
 
                 var groupedByProducer = numberedCsvItems
                     .GroupBy(g => g.ProducerId)
@@ -201,7 +201,8 @@ public class SplitterService : ISplitterService
             ToHomeNation = firstProducerRow.ToHomeNation,
             QuantityKg = firstProducerRow.QuantityKg,
             QuantityUnits = firstProducerRow.QuantityUnits,
-            PreviouslyImpactedQuantityUnits = _isLatest ? firstProducerRow.TransitionalPackagingUnits : null
+            PreviouslyImpactedQuantityUnits = _isLatest ? firstProducerRow.TransitionalPackagingUnits : null,
+            RecyclabilityRating = firstProducerRow.RecyclabilityRating
         };
 
         return request;

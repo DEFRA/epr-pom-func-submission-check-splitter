@@ -35,4 +35,6 @@ public class CheckSplitterIssue
     public string? QuantityUnits { get; set; }
 
     public string? PreviouslyImpactedQuantityUnits { get; set; }
+
+    public string? RecyclabilityRating { get; set; }
 }
