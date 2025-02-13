@@ -42,6 +42,6 @@ public class NumberedCsvDataRow : CsvDataRow
 
     public virtual bool ShouldSerializeRecyclabilityRating()
     {
-        return false;
+        return IsRecyclabilityRatingRequired;
     }
 }
