@@ -40,7 +40,7 @@ public class NumberedCsvDataRow : CsvDataRow
         return IsLatest;
     }
 
-    public virtual bool ShouldSerializeRecyclabilityRating()
+    public override bool ShouldSerializeRecyclabilityRating()
     {
         return IsRecyclabilityRatingRequired;
     }
