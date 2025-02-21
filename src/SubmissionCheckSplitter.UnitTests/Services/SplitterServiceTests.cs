@@ -472,7 +472,7 @@ public class SplitterServiceTests
         // Arrange
         var userOrganisationId = "ValidOrgId";
         var uploadedProducerIds = new[] { "ValidProducerId" };
-        var organisation = new OrganisationDataResult(uploadedProducerIds.First(), false);
+        var organisation = new OrganisationDataResult(uploadedProducerIds[0], false);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(userOrganisationId))
             .ReturnsAsync(organisation);
@@ -756,8 +756,8 @@ public class SplitterServiceTests
         const string userOrganisationId = "ValidOrgId";
         var complianceSchemeId = Guid.NewGuid();
         var uploadedProducerIds = new[] { "ValidProducerId" };
-        var organisation = new OrganisationDataResult(uploadedProducerIds.First(), true);
-        var organisationMembers = new OrganisationMembersResult(new List<string> { uploadedProducerIds.First() });
+        var organisation = new OrganisationDataResult(uploadedProducerIds[0], true);
+        var organisationMembers = new OrganisationMembersResult(new List<string> { uploadedProducerIds[0] });
 
         _validationDataApiConfigMock.Setup(config => config.Value).Returns(new ValidationDataApiConfig { IsEnabled = true });
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(userOrganisationId))
@@ -1157,7 +1157,7 @@ public class SplitterServiceTests
         _validationDataApiClientMock.Setup(x => x.GetOrganisationMembers(userOrganisationId, complianceSchemeId))
             .ReturnsAsync(new OrganisationMembersResult(uploadedProducerIds));
         _validationDataApiClientMock.Setup(x => x.GetValidOrganisations(uploadedProducerIds))
-            .ReturnsAsync(new OrganisationsResult(new List<string>() { uploadedProducerIds.First() }));
+            .ReturnsAsync(new OrganisationsResult(new List<string>() { uploadedProducerIds[0] }));
         _validationDataApiClientMock.Setup(x => x.GetValidOrganisations(uploadedProducerIds))
             .ReturnsAsync(organisations);
         _validationDataApiConfigMock.Setup(config => config.Value).Returns(new ValidationDataApiConfig { IsEnabled = true });
