@@ -113,7 +113,7 @@ public class SplitterService : ISplitterService
             else
             {
                 _logger.LogInformation(
-                    "The CSV file for submission ID {submissionId} is empty",
+                    "The CSV file for submission ID {SubmissionId} is empty",
                     blobQueueMessage.SubmissionId);
 
                 errors = new List<string>
@@ -142,7 +142,7 @@ public class SplitterService : ISplitterService
         }
         catch (ArgumentNullException exception)
         {
-            _logger.LogError(exception, "csv data rows are invalid and it is missing Organisation id (Hint check for invisible rows in csv)");
+            _logger.LogError(exception, "CSV data rows are invalid OR it is missing Organisation id (Hint check for invisible rows in CSV)");
             errors = new List<string>
             {
                 ErrorCode.CsvFileEmptyErrorCode,

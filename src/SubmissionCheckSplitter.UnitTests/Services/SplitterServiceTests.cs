@@ -258,8 +258,10 @@ public class SplitterServiceTests
             .Setup(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage))
             .Returns(_blobQueueMessage);
 
-        _memoryStream = new MemoryStream(10);
+        _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
+            .ThrowsAsync(new ValidationDataApiClientException("A success status code was not received when requesting organisation details", new HttpRequestException()));
 
+        _memoryStream = new MemoryStream(10);
         _blobReaderMock
             .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
             .Returns(_memoryStream);
@@ -285,7 +287,7 @@ public class SplitterServiceTests
             .ToList();
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value)) // new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }))
             .Returns(_csvItems);
 
         // Act
@@ -293,14 +295,61 @@ public class SplitterServiceTests
 
         // Assert
         _loggerMock.VerifyLog(
-            logger => logger.LogCritical(
-                It.Is<string>(msg => msg.Contains("An unexpected error occurred processing the message")),
-                It.IsAny<Exception>()),
+            logger => logger.LogError(
+                It.Is<string>(msg => msg.Contains("A success status code was not received when requesting organisation details")),
+                It.IsAny<ValidationDataApiClientException>()),
             Times.Once);
     }
 
     [TestMethod]
     public void ProcessServiceBusMessage_LogsError_WhenServiceBus_ClientThrowsException()
+    {
+        string organisationId = "1";
+        string blobName = "testBlob";
+        _blobQueueMessage = new BlobQueueMessage
+        {
+            OrganisationId = organisationId,
+            BlobName = blobName,
+            SubmissionPeriod = SubmissionPeriod,
+            ComplianceSchemeId = Guid.NewGuid()
+        };
+        _serializedQueueMessage = JsonConvert.SerializeObject(_blobQueueMessage);
+
+        _dequeueProviderMock.Setup(x => x.GetMessageFromJson<BlobQueueMessage>(It.IsAny<string>()))
+            .Returns(_blobQueueMessage);
+
+        _memoryStream = new MemoryStream();
+        _blobReaderMock.Setup(x => x.DownloadBlobToStream(blobName))
+            .Returns(_memoryStream);
+
+        _csvItems = new List<CsvDataRow>
+        {
+            new() { ProducerId = "1" }
+        };
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
+            .Returns(_csvItems);
+
+        _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
+            .ReturnsAsync(new OrganisationDataResult("1", true));
+
+        _validationDataApiClientMock
+            .Setup(x => x.GetOrganisationMembers(It.IsAny<string>(), It.IsAny<Guid>()))
+            .ReturnsAsync(new OrganisationMembersResult(new List<string> { "1", "2" }));
+
+        _serviceBusQueueClientMock
+           .Setup(m => m.AddToProducerValidationQueue(It.IsAny<string>(), _blobQueueMessage, It.IsAny<List<NumberedCsvDataRow>>()))
+           .ThrowsAsync(new Exception("Unit test"));
+
+        // Act
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
+
+        // Assert
+        _loggerMock.VerifyLog(logger => logger.LogCritical("An unexpected error occurred processing the message"));
+    }
+
+    // TODO
+    [TestMethod]
+    public void ProcessServiceBusMessage_LogsError_ReadingCsvItems_Throws_CsvParseException()
     {
         // Arrange
         _blobQueueMessage = _fixture.Create<BlobQueueMessage>();
@@ -316,26 +365,67 @@ public class SplitterServiceTests
             .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
             .Returns(_memoryStream);
 
-        _serviceBusQueueClientMock
-            .Setup(m =>
-                m.AddToProducerValidationQueue(It.IsAny<string>(), _blobQueueMessage, It.IsAny<List<NumberedCsvDataRow>>()))
-            .ThrowsAsync(new Exception("Unit test"));
-
-        var csvItems = _fixture
-            .Build<CsvDataRow>()
-            .With(x => x.ProducerId, "1")
-            .CreateMany(3)
-            .ToList();
-
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }))
-            .Returns(csvItems);
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value))
+            .Throws(new CsvParseException("Error parsing CSV"));
 
         // Act
         _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
-        _loggerMock.VerifyLog(logger => logger.LogCritical("An unexpected error occurred processing the message"));
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Critical,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An error occurred parsing the CSV file")),
+                It.IsAny<CsvParseException>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Once);
+    }
+
+    // TODO
+    [TestMethod]
+    public void ProcessServiceBusMessage_LogsError_WhenServiceBus_ClientThrows_ArgumentNullException_DueToNullCsvRowData()
+    {
+        // Arrange
+        _blobQueueMessage = _fixture.Create<BlobQueueMessage>();
+        _serializedQueueMessage = JsonConvert.SerializeObject(_blobQueueMessage);
+
+        _dequeueProviderMock
+            .Setup(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage))
+            .Returns(_blobQueueMessage);
+
+        _memoryStream = new MemoryStream(10);
+
+        _blobReaderMock
+            .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
+            .Returns(_memoryStream);
+
+        var csvItems = _fixture
+           .Build<CsvDataRow>()
+           .With(x => x.ProducerId, "1")
+           .CreateMany(3)
+        .ToList();
+
+        csvItems[2] = new CsvDataRow(); // pass null values
+        _fixture.Inject(csvItems);
+
+        _csvHelperMock
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value))
+            .Returns(csvItems).Verifiable();
+
+        // Act
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
+
+        // Assert
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("CSV data rows are invalid OR it is missing Organisation id (Hint check for invisible rows in CSV)")),
+                It.IsAny<ArgumentNullException>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Once);
     }
 
     [TestMethod]
