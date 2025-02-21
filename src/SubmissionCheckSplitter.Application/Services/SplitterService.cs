@@ -1,6 +1,5 @@
 ﻿namespace SubmissionCheckSplitter.Application.Services;
 
-using System.Reflection.Metadata;
 using System.Text.RegularExpressions;
 using Clients;
 using Clients.Interfaces;
@@ -15,7 +14,6 @@ using Helpers;
 using Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json.Linq;
 using Providers;
 using Readers;
 
@@ -72,7 +70,7 @@ public class SplitterService : ISplitterService
             {
                 var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod, csvDataFileConfigOptions.Value);
 
-                var groupedByProducer = numberedCsvItems.Where(x => !string.IsNullOrWhiteSpace(x.ProducerId))
+                var groupedByProducer = numberedCsvItems
                     .GroupBy(g => g.ProducerId)
                     .ToDictionary(g => g.Key, g => g.ToList());
                 numberOfRecords = groupedByProducer.Count;
@@ -144,7 +142,7 @@ public class SplitterService : ISplitterService
         }
         catch (ArgumentNullException exception)
         {
-            _logger.LogError(exception, "csv data rows are invalid and it is missing Organisation (Hint check for invisible rows in csv)");
+            _logger.LogError(exception, "csv data rows are invalid and it is missing Organisation id (Hint check for invisible rows in csv)");
             errors = new List<string>
             {
                 ErrorCode.CsvFileEmptyErrorCode,
