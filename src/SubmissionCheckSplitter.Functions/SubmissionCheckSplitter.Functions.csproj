@@ -4,6 +4,7 @@
         <AzureFunctionsVersion>v4</AzureFunctionsVersion>
         <RootNamespace>SubmissionCheckSplitter.Functions</RootNamespace>
         <AssemblyName>$(MSBuildProjectName)</AssemblyName>
+        <UserSecretsId>0b6d3acf-7712-479c-822d-2946742f0ecd</UserSecretsId>
     </PropertyGroup>
     <ItemGroup>
         <None Update="host.json">
