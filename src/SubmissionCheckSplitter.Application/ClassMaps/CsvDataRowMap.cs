@@ -8,7 +8,7 @@ using TypeConverters;
 [ExcludeFromCodeCoverage]
 public class CsvDataRowMap : ClassMap<CsvDataRow>
 {
-    public CsvDataRowMap(bool isLatest)
+    public CsvDataRowMap(List<string> expectedHeaders)
     {
         Map(x => x.ProducerId).Index(0).TypeConverter<StringConverter>();
         Map(x => x.SubsidiaryId).Index(1).TypeConverter<StringConverter>();
@@ -24,9 +24,14 @@ public class CsvDataRowMap : ClassMap<CsvDataRow>
         Map(x => x.QuantityKg).Index(11).TypeConverter<StringConverter>();
         Map(x => x.QuantityUnits).Index(12).TypeConverter<StringConverter>();
 
-        if (isLatest)
+        if (expectedHeaders.Contains("transitional_packaging_units"))
         {
-            Map(x => x.TransitionalPackagingUnits).Index(13).TypeConverter<StringConverter>();
+            Map(x => x.TransitionalPackagingUnits).Name("transitional_packaging_units").Optional().TypeConverter<StringConverter>();
+        }
+
+        if (expectedHeaders.Contains("ram_rag_rating"))
+        {
+            Map(x => x.RecyclabilityRating).Name("ram_rag_rating").Optional().TypeConverter<StringConverter>();
         }
     }
 }

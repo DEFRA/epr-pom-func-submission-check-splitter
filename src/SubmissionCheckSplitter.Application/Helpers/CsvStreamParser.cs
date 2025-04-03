@@ -9,17 +9,16 @@ using CsvHelper.Configuration;
 using Data.Attributes;
 using Data.Models;
 using Exceptions;
+using SubmissionCheckSplitter.Data.Config;
 
 public class CsvStreamParser : ICsvStreamParser
 {
-    private const int New14ColumnCount = 14;
-
     private static CsvConfiguration CsvConfiguration => new(CultureInfo.InvariantCulture)
     {
         HasHeaderRecord = true
     };
 
-    public IList<T> GetItemsFromCsvStream<T>(MemoryStream memoryStream, bool isLatest = false)
+    public IList<T> GetItemsFromCsvStream<T>(MemoryStream memoryStream, CsvDataFileConfig? csvDataFileConfigOptions)
     {
         memoryStream.Position = 0;
         using var reader = new StreamReader(memoryStream);
@@ -30,12 +29,31 @@ public class CsvStreamParser : ICsvStreamParser
             csv.Read();
             csv.ReadHeader();
             var header = csv.HeaderRecord;
+            var mandatoryHeaders = GetMandatoryHeaders();
+            var optionalHeaders = GetOptionalHeaders();
 
-            if (header != null && (header.SequenceEqual(GetExpectedHeaders().HeaderWith13Columns) || header.SequenceEqual(GetExpectedHeaders().HeadersWith14Columns)))
+            if (csvDataFileConfigOptions != null)
             {
-                isLatest = header.Length == New14ColumnCount;
-                csv.Context.RegisterClassMap(new CsvDataRowMap(isLatest));
-                return csv.GetRecords<T>().ToList();
+                if (csvDataFileConfigOptions.EnableTransitionalPackagingUnitsColumn)
+                {
+                    var headerName = GetHeaderName(nameof(CsvDataRow.TransitionalPackagingUnits));
+                    mandatoryHeaders.Add(headerName);
+                    optionalHeaders.Remove(headerName);
+                }
+
+                if (csvDataFileConfigOptions.EnableRecyclabilityRatingColumn)
+                {
+                    var headerName = GetHeaderName(nameof(CsvDataRow.RecyclabilityRating));
+                    mandatoryHeaders.Add(headerName);
+                    optionalHeaders.Remove(headerName);
+                }
+            }
+
+            if (header != null && (header.Length >= mandatoryHeaders.Count() && header.Where(x => !optionalHeaders.Contains(x)).ToList().SequenceEqual(mandatoryHeaders)))
+            {
+                csv.Context.RegisterClassMap(new CsvDataRowMap(mandatoryHeaders));
+                var result = csv.GetRecords<T>().ToList();
+                return result;
             }
 
             throw new CsvHeaderException("The CSV file header is invalid.");
@@ -46,14 +64,26 @@ public class CsvStreamParser : ICsvStreamParser
         }
     }
 
-    private static (List<string> HeaderWith13Columns, List<string> HeadersWith14Columns) GetExpectedHeaders()
+    private static string GetHeaderName(string propertyName)
+    {
+        return typeof(CsvDataRow).GetProperty(propertyName).GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader;
+    }
+
+    private static List<string> GetMandatoryHeaders()
     {
         var headers = typeof(CsvDataRow).GetProperties()
+            .Where(x => x.GetCustomAttribute<CsvHelper.Configuration.Attributes.OptionalAttribute>() == null).OrderBy(x => x.GetCustomAttribute<CsvHelper.Configuration.Attributes.IndexAttribute>().Index)
                 .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader).ToList();
 
-        var name = typeof(CsvDataRow).GetProperty(nameof(CsvDataRow.TransitionalPackagingUnits))
-                              .GetCustomAttribute<ExpectedHeaderAttribute>();
+        return headers;
+    }
 
-        return (HeaderWith13Columns: headers.Where(z => z != name.ExpectedHeader).ToList(), HeadersWith14Columns: headers);
+    private static List<string> GetOptionalHeaders()
+    {
+        var headers = typeof(CsvDataRow).GetProperties()
+            .Where(x => x.GetCustomAttribute<CsvHelper.Configuration.Attributes.OptionalAttribute>() != null).OrderBy(x => x.GetCustomAttribute<CsvHelper.Configuration.Attributes.IndexAttribute>().Index)
+                .Select(x => x.GetCustomAttribute<ExpectedHeaderAttribute>()?.ExpectedHeader).ToList();
+
+        return headers;
     }
 }

@@ -11,6 +11,7 @@ using CsvHelper.Configuration;
 using Data.Models;
 using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using SubmissionCheckSplitter.Data.Config;
 
 [TestClass]
 public class CsvStreamParserTests
@@ -42,7 +43,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, true);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = true });
 
         // Assert
         result.Should().AllSatisfy(x =>
@@ -61,6 +62,7 @@ public class CsvStreamParserTests
             x.QuantityKg.Should().NotBeNullOrWhiteSpace();
             x.QuantityUnits.Should().NotBeNullOrWhiteSpace();
             x.TransitionalPackagingUnits.Should().NotBeNullOrWhiteSpace();
+            x.RecyclabilityRating.Should().NotBeNullOrWhiteSpace();
         });
     }
 
@@ -85,6 +87,7 @@ public class CsvStreamParserTests
             .With(x => x.QuantityKg, string.Empty)
             .With(x => x.QuantityUnits, string.Empty)
             .With(x => x.TransitionalPackagingUnits, string.Empty)
+            .With(x => x.RecyclabilityRating, string.Empty)
             .CreateMany(2);
         var csvDataRows = items.Prepend(expectedHeaders);
 
@@ -97,7 +100,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, true);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = true });
 
         // Assert
         result.Should().AllSatisfy(x =>
@@ -116,6 +119,7 @@ public class CsvStreamParserTests
             x.QuantityKg.Should().BeNull();
             x.QuantityUnits.Should().BeNull();
             x.TransitionalPackagingUnits.Should().BeNull();
+            x.RecyclabilityRating.Should().BeNull();
         });
     }
 
@@ -138,7 +142,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, true);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = true });
 
         // Assert
         result.Should().AllSatisfy(x =>
@@ -157,6 +161,7 @@ public class CsvStreamParserTests
             x.QuantityKg.Should().Be(items.First().QuantityKg);
             x.QuantityUnits.Should().Be(items.First().QuantityUnits);
             x.TransitionalPackagingUnits.Should().Be(items.First().TransitionalPackagingUnits);
+            x.RecyclabilityRating.Should().Be(items.First().RecyclabilityRating);
         });
     }
 
@@ -177,7 +182,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act / Assert
-        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false));
+        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }));
     }
 
     [TestMethod]
@@ -199,7 +204,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act / Assert
-        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false));
+        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }));
     }
 
     [TestMethod]
@@ -221,7 +226,8 @@ public class CsvStreamParserTests
             ToHomeNation = "to_country",
             QuantityKg = "packaging_material_weight",
             QuantityUnits = "packaging_material_units",
-            TransitionalPackagingUnits = "transitional_packaging_units"
+            TransitionalPackagingUnits = "transitional_packaging_units",
+            RecyclabilityRating = "ram_rag_rating"
         };
         var items = new List<CsvDataRow>
         {
@@ -237,7 +243,7 @@ public class CsvStreamParserTests
         writer.Flush();
 
         // Act / Assert
-        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false));
+        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }));
     }
 
     [TestMethod]
@@ -248,7 +254,7 @@ public class CsvStreamParserTests
         string expectedValueTransitionalPackagingUnits = null;
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = false });
 
         // Assert
         Assert.IsNotNull(result);
@@ -266,7 +272,7 @@ public class CsvStreamParserTests
         string expectedValueTransitionalPackagingUnits = "100";
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = false });
 
         // Assert
         Assert.IsNotNull(result);
@@ -274,6 +280,52 @@ public class CsvStreamParserTests
         {
             x.TransitionalPackagingUnits.Should().Be(expectedValueTransitionalPackagingUnits);
         });
+    }
+
+    [TestMethod]
+    public void GetItemsFromCsvStream_MapsCsvProperties_When_RecyclabilityRating_Column_IsEnabled()
+    {
+        // Arrange
+        var memoryStream = Generate15Column15ValueStream_For_RecyclabilityRating_Feature_Enabled();
+        string expectedValueRecyclabilityRating = "A";
+
+        // Act
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = true });
+
+        // Assert
+        Assert.IsNotNull(result);
+        result.Should().AllSatisfy(x =>
+        {
+            x.RecyclabilityRating.Should().Be(expectedValueRecyclabilityRating);
+        });
+    }
+
+    [TestMethod]
+    public void GetItemsFromCsvStream_MapsCsvProperties_When_RecyclabilityRating_Column_IsDisabled()
+    {
+        // Arrange
+        var memoryStream = Generate15Column15ValueStream_For_RecyclabilityRating_Feature_Enabled();
+
+        // Act
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = false });
+
+        // Assert
+        Assert.IsNotNull(result);
+        result.Should().AllSatisfy(x =>
+        {
+            x.RecyclabilityRating.Should().BeNullOrEmpty();
+        });
+    }
+
+    [TestMethod]
+    public void GetItemsFromCsvStream_MapsCsvProperties_When_RecyclabilityRating_IsEnabled_And_No_Column_Header()
+    {
+        // Arrange
+        var memoryStream = Generate14Column13ValueStream_For_RecyclabilityRating_Feature_Enabled();
+
+        // Act
+        // Assert
+        Assert.ThrowsException<CsvParseException>(() => _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }));
     }
 
     [TestMethod]
@@ -285,7 +337,7 @@ public class CsvStreamParserTests
         string expectedValueTransitionalPackagingUnits = null;
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = false });
 
         // Assert
         Assert.IsNotNull(result);
@@ -304,7 +356,7 @@ public class CsvStreamParserTests
         string expectedValueTransitionalPackagingUnits = null;
 
         // Act
-        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, false);
+        var result = _systemUnderTest.GetItemsFromCsvStream<CsvDataRow>(memoryStream, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true });
 
         // Assert
         Assert.IsNotNull(result);
@@ -331,7 +383,8 @@ public class CsvStreamParserTests
             ToHomeNation = "to_country",
             QuantityKg = "packaging_material_weight",
             QuantityUnits = "packaging_material_units",
-            TransitionalPackagingUnits = "transitional_packaging_units"
+            TransitionalPackagingUnits = "transitional_packaging_units",
+            RecyclabilityRating = "ram_rag_rating"
         };
     }
 
@@ -352,7 +405,8 @@ public class CsvStreamParserTests
             ToHomeNation = "SC",
             QuantityKg = "1234",
             QuantityUnits = "1000",
-            TransitionalPackagingUnits = "100"
+            TransitionalPackagingUnits = "100",
+            RecyclabilityRating = "A"
         };
     }
 
@@ -403,6 +457,34 @@ public class CsvStreamParserTests
         var sb = new StringBuilder();
         sb.AppendLine("organisation_id,subsidiary_id,organisation_size,submission_period,packaging_activity,packaging_type,packaging_class,packaging_material,packaging_material_subtype,from_country,to_country,packaging_material_weight");
         sb.AppendLine("100249,A1001,L,2023-P1,SO,HDC,,PL,,,,");
+
+        var stream = new MemoryStream();
+        var writer = new StreamWriter(stream);
+        writer.Write(sb.ToString());
+        writer.Flush();
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream Generate15Column15ValueStream_For_RecyclabilityRating_Feature_Enabled()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("organisation_id,subsidiary_id,organisation_size,submission_period,packaging_activity,packaging_type,packaging_class,packaging_material,packaging_material_subtype,from_country,to_country,packaging_material_weight,packaging_material_units,transitional_packaging_units,ram_rag_rating");
+        sb.AppendLine("100249,A1001,L,2023-P1,SO,HDC,,PL,,,,125000,125000,100,A");
+
+        var stream = new MemoryStream();
+        var writer = new StreamWriter(stream);
+        writer.Write(sb.ToString());
+        writer.Flush();
+        stream.Position = 0;
+        return stream;
+    }
+
+    private static MemoryStream Generate14Column13ValueStream_For_RecyclabilityRating_Feature_Enabled()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("organisation_id,subsidiary_id,organisation_size,submission_period,packaging_activity,packaging_type,packaging_class,packaging_material,packaging_material_subtype,from_country,to_country,packaging_material_weight,transitional_packaging_units");
+        sb.AppendLine("100249,A1001,L,2023-P1,SO,HDC,,PL,,,,125000,125000,100,A");
 
         var stream = new MemoryStream();
         var writer = new StreamWriter(stream);
