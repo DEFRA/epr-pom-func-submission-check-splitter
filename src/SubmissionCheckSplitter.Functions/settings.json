@@ -12,6 +12,8 @@
     "ValidationDataApi:IsEnabled": false,
     "ValidationDataApi:Timeout": 10,
     "Validation:MaxIssuesToProcess": 1000,
-    "Redis:ConnectionString":"https://localhost:1234"
+    "Redis:ConnectionString": "https://localhost:1234",
+    "CsvDataFile:EnableTransitionalPackagingUnitsColumn": false,
+    "CsvDataFile:EnableRecyclabilityRatingColumn": false
   }
 }

@@ -7,5 +7,7 @@ public class CsvDataFileConfig
 {
     public const string Section = "CsvDataFile";
 
-    public bool IsLatest { get; set; }
+    public bool EnableTransitionalPackagingUnitsColumn { get; set; }
+
+    public bool EnableRecyclabilityRatingColumn { get; set; }
 }

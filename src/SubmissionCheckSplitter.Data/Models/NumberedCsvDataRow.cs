@@ -1,8 +1,10 @@
 ﻿namespace SubmissionCheckSplitter.Data.Models;
 
+using SubmissionCheckSplitter.Data.Config;
+
 public class NumberedCsvDataRow : CsvDataRow
 {
-    public NumberedCsvDataRow(int rowNumber, string submissionPeriod, CsvDataRow csvDataRow, bool isLatest)
+    public NumberedCsvDataRow(int rowNumber, string submissionPeriod, CsvDataRow csvDataRow, CsvDataFileConfig csvDataFileConfigOptions)
     {
         RowNumber = rowNumber;
         ProducerId = csvDataRow.ProducerId;
@@ -20,7 +22,9 @@ public class NumberedCsvDataRow : CsvDataRow
         QuantityUnits = csvDataRow.QuantityUnits;
         SubmissionPeriod = submissionPeriod;
         TransitionalPackagingUnits = csvDataRow.TransitionalPackagingUnits;
-        IsLatest = isLatest;
+        RecyclabilityRating = csvDataRow.RecyclabilityRating;
+        IsLatest = csvDataFileConfigOptions.EnableTransitionalPackagingUnitsColumn;
+        IsRecyclabilityRatingRequired = csvDataFileConfigOptions.EnableRecyclabilityRatingColumn;
     }
 
     public int RowNumber { get; }
@@ -29,8 +33,15 @@ public class NumberedCsvDataRow : CsvDataRow
 
     public bool IsLatest { get; set; }
 
+    public bool IsRecyclabilityRatingRequired { get; set; }
+
     public override bool ShouldSerializeTransitionalPackagingUnits()
     {
         return IsLatest;
+    }
+
+    public override bool ShouldSerializeRecyclabilityRating()
+    {
+        return IsRecyclabilityRatingRequired;
     }
 }

@@ -60,10 +60,21 @@ public class CsvDataRow
     public string QuantityUnits { get; init; }
 
     [Index(13)]
+    [Optional]
     [ExpectedHeader("transitional_packaging_units")]
     public string TransitionalPackagingUnits { get; set; }
 
+    [Index(14)]
+    [Optional]
+    [ExpectedHeader("ram_rag_rating")]
+    public string RecyclabilityRating { get; set; }
+
     public virtual bool ShouldSerializeTransitionalPackagingUnits()
+    {
+        return false;
+    }
+
+    public virtual bool ShouldSerializeRecyclabilityRating()
     {
         return false;
     }

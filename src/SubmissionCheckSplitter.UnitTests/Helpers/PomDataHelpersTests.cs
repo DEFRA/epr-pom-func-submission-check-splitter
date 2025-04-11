@@ -7,6 +7,7 @@ using FluentAssertions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using SubmissionCheckSplitter.Application.Helpers;
+using SubmissionCheckSplitter.Data.Config;
 
 [TestClass]
 public class PomDataHelpersTests
@@ -27,7 +28,7 @@ public class PomDataHelpersTests
     public void Should_add_correct_csv_row_numbers()
     {
         // Act
-        var numberedData = _csvData.ToNumberedCsvDataRows(It.IsAny<string>(), It.IsAny<bool>()).ToList();
+        var numberedData = _csvData.ToNumberedCsvDataRows(It.IsAny<string>(), new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = false }).ToList();
 
         // Assert
         for (var i = 0; i < numberedData.Count; i++)
@@ -44,7 +45,7 @@ public class PomDataHelpersTests
     public void Should_add_correct_csv_submission_period()
     {
         // Act
-        var numberedData = _csvData.ToNumberedCsvDataRows(SubmissionPeriod, false).ToList();
+        var numberedData = _csvData.ToNumberedCsvDataRows(SubmissionPeriod, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }).ToList();
 
         // Assert
         for (var i = 0; i < numberedData.Count; i++)

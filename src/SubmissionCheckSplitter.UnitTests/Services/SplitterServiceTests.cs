@@ -84,7 +84,7 @@ public class SplitterServiceTests
         var validationConfig = new ValidationConfig { MaxIssuesToProcess = 1000 };
         _validationConfigMock.Setup(ap => ap.Value).Returns(validationConfig);
 
-        var csvDataFileConfig = new CsvDataFileConfig { IsLatest = true };
+        var csvDataFileConfig = new CsvDataFileConfig { EnableTransitionalPackagingUnitsColumn = true, EnableRecyclabilityRatingColumn = true };
         _csvDataFileMockConfig.Setup(ap => ap.Value).Returns(csvDataFileConfig);
 
         _blobQueueMessage = _fixture.Create<BlobQueueMessage>();
@@ -99,7 +99,7 @@ public class SplitterServiceTests
             .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
             .Returns(_memoryStream);
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, false))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value))
             .Returns(_csvItems);
     }
 
@@ -153,7 +153,7 @@ public class SplitterServiceTests
             .ToList();
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value))
             .Returns(_csvItems);
 
         // Act
@@ -162,7 +162,7 @@ public class SplitterServiceTests
         // Assert
         _dequeueProviderMock.Verify(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage), Times.Once);
         _blobReaderMock.Verify(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName), Times.Once);
-        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true), Times.Once);
+        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value), Times.Once);
 
         _submissionApiClientMock
             .Verify(
@@ -177,7 +177,7 @@ public class SplitterServiceTests
                     It.IsAny<List<string>>()),
                 Times.Once);
 
-        var numberedCsvItems = _csvItems.ToNumberedCsvDataRows(SubmissionPeriod, false).ToList();
+        var numberedCsvItems = _csvItems.ToNumberedCsvDataRows(SubmissionPeriod, new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }).ToList();
         var expectedProducer1 = numberedCsvItems.Where(x => x.ProducerId == producerId).ToList();
         var expectedProducer2 = numberedCsvItems.Where(x => x.ProducerId == producerIdTwo).ToList();
 
@@ -214,7 +214,7 @@ public class SplitterServiceTests
             .Returns(_memoryStream);
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Throws(new CsvParseException("test"));
 
         // Act
@@ -223,7 +223,7 @@ public class SplitterServiceTests
         // assert
         _dequeueProviderMock.Verify(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage), Times.Once);
         _blobReaderMock.Verify(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName), Times.Once);
-        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true), Times.Once);
+        _csvHelperMock.Verify(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value), Times.Once);
 
         _submissionApiClientMock
             .Verify(
@@ -258,8 +258,10 @@ public class SplitterServiceTests
             .Setup(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage))
             .Returns(_blobQueueMessage);
 
-        _memoryStream = new MemoryStream(10);
+        _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
+            .ThrowsAsync(new ValidationDataApiClientException("A success status code was not received when requesting organisation details", new HttpRequestException()));
 
+        _memoryStream = new MemoryStream(10);
         _blobReaderMock
             .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
             .Returns(_memoryStream);
@@ -285,7 +287,7 @@ public class SplitterServiceTests
             .ToList();
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, false))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value)) // new CsvDataFileConfig() { EnableTransitionalPackagingUnitsColumn = false, EnableRecyclabilityRatingColumn = true }))
             .Returns(_csvItems);
 
         // Act
@@ -293,14 +295,61 @@ public class SplitterServiceTests
 
         // Assert
         _loggerMock.VerifyLog(
-            logger => logger.LogCritical(
-                It.Is<string>(msg => msg.Contains("An unexpected error occurred processing the message")),
-                It.IsAny<Exception>()),
+            logger => logger.LogError(
+                It.Is<string>(msg => msg.Contains("A success status code was not received when requesting organisation details")),
+                It.IsAny<ValidationDataApiClientException>()),
             Times.Once);
     }
 
     [TestMethod]
     public void ProcessServiceBusMessage_LogsError_WhenServiceBus_ClientThrowsException()
+    {
+        string organisationId = "1";
+        string blobName = "testBlob";
+        _blobQueueMessage = new BlobQueueMessage
+        {
+            OrganisationId = organisationId,
+            BlobName = blobName,
+            SubmissionPeriod = SubmissionPeriod,
+            ComplianceSchemeId = Guid.NewGuid()
+        };
+        _serializedQueueMessage = JsonConvert.SerializeObject(_blobQueueMessage);
+
+        _dequeueProviderMock.Setup(x => x.GetMessageFromJson<BlobQueueMessage>(It.IsAny<string>()))
+            .Returns(_blobQueueMessage);
+
+        _memoryStream = new MemoryStream();
+        _blobReaderMock.Setup(x => x.DownloadBlobToStream(blobName))
+            .Returns(_memoryStream);
+
+        _csvItems = new List<CsvDataRow>
+        {
+            new() { ProducerId = "1" }
+        };
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
+            .Returns(_csvItems);
+
+        _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
+            .ReturnsAsync(new OrganisationDataResult("1", true));
+
+        _validationDataApiClientMock
+            .Setup(x => x.GetOrganisationMembers(It.IsAny<string>(), It.IsAny<Guid>()))
+            .ReturnsAsync(new OrganisationMembersResult(new List<string> { "1", "2" }));
+
+        _serviceBusQueueClientMock
+           .Setup(m => m.AddToProducerValidationQueue(It.IsAny<string>(), _blobQueueMessage, It.IsAny<List<NumberedCsvDataRow>>()))
+           .ThrowsAsync(new Exception("Unit test"));
+
+        // Act
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
+
+        // Assert
+        _loggerMock.VerifyLog(logger => logger.LogCritical("An unexpected error occurred processing the message"));
+    }
+
+    // TODO
+    [TestMethod]
+    public void ProcessServiceBusMessage_LogsError_ReadingCsvItems_Throws_CsvParseException()
     {
         // Arrange
         _blobQueueMessage = _fixture.Create<BlobQueueMessage>();
@@ -316,26 +365,67 @@ public class SplitterServiceTests
             .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
             .Returns(_memoryStream);
 
-        _serviceBusQueueClientMock
-            .Setup(m =>
-                m.AddToProducerValidationQueue(It.IsAny<string>(), _blobQueueMessage, It.IsAny<List<NumberedCsvDataRow>>()))
-            .ThrowsAsync(new Exception("Unit test"));
-
-        var csvItems = _fixture
-            .Build<CsvDataRow>()
-            .With(x => x.ProducerId, "1")
-            .CreateMany(3)
-            .ToList();
-
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, false))
-            .Returns(csvItems);
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value))
+            .Throws(new CsvParseException("Error parsing CSV"));
 
         // Act
         _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
 
         // Assert
-        _loggerMock.VerifyLog(logger => logger.LogCritical("An unexpected error occurred processing the message"));
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Critical,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("An error occurred parsing the CSV file")),
+                It.IsAny<CsvParseException>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Once);
+    }
+
+    // TODO
+    [TestMethod]
+    public void ProcessServiceBusMessage_LogsError_WhenServiceBus_ClientThrows_ArgumentNullException_DueToNullCsvRowData()
+    {
+        // Arrange
+        _blobQueueMessage = _fixture.Create<BlobQueueMessage>();
+        _serializedQueueMessage = JsonConvert.SerializeObject(_blobQueueMessage);
+
+        _dequeueProviderMock
+            .Setup(x => x.GetMessageFromJson<BlobQueueMessage>(_serializedQueueMessage))
+            .Returns(_blobQueueMessage);
+
+        _memoryStream = new MemoryStream(10);
+
+        _blobReaderMock
+            .Setup(x => x.DownloadBlobToStream(_blobQueueMessage.BlobName))
+            .Returns(_memoryStream);
+
+        var csvItems = _fixture
+           .Build<CsvDataRow>()
+           .With(x => x.ProducerId, "1")
+           .CreateMany(3)
+        .ToList();
+
+        csvItems[2] = new CsvDataRow(); // pass null values
+        _fixture.Inject(csvItems);
+
+        _csvHelperMock
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value))
+            .Returns(csvItems).Verifiable();
+
+        // Act
+        _systemUnderTest.ProcessServiceBusMessage(_serializedQueueMessage, _validationDataApiConfigMock.Object, _validationConfigMock.Object, _csvDataFileMockConfig.Object);
+
+        // Assert
+        _loggerMock.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString().Contains("CSV data rows are invalid OR it is missing Organisation id (Hint check for invisible rows in CSV)")),
+                It.IsAny<ArgumentNullException>(),
+                It.IsAny<Func<It.IsAnyType, Exception, string>>()),
+            Times.Once);
     }
 
     [TestMethod]
@@ -356,7 +446,7 @@ public class SplitterServiceTests
             .Returns(_memoryStream);
 
         _csvHelperMock
-            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, true))
+            .Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(_memoryStream, _csvDataFileMockConfig.Object.Value))
             .Returns(new List<CsvDataRow>());
 
         // Act
@@ -382,7 +472,7 @@ public class SplitterServiceTests
         // Arrange
         var userOrganisationId = "ValidOrgId";
         var uploadedProducerIds = new[] { "ValidProducerId" };
-        var organisation = new OrganisationDataResult(uploadedProducerIds.First(), false);
+        var organisation = new OrganisationDataResult(uploadedProducerIds[0], false);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(userOrganisationId))
             .ReturnsAsync(organisation);
@@ -406,7 +496,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -447,7 +537,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = "1" }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
@@ -496,7 +586,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = "1" }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
@@ -554,7 +644,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = "1" },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(It.IsAny<string>()))
@@ -629,7 +719,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -666,8 +756,8 @@ public class SplitterServiceTests
         const string userOrganisationId = "ValidOrgId";
         var complianceSchemeId = Guid.NewGuid();
         var uploadedProducerIds = new[] { "ValidProducerId" };
-        var organisation = new OrganisationDataResult(uploadedProducerIds.First(), true);
-        var organisationMembers = new OrganisationMembersResult(new List<string> { uploadedProducerIds.First() });
+        var organisation = new OrganisationDataResult(uploadedProducerIds[0], true);
+        var organisationMembers = new OrganisationMembersResult(new List<string> { uploadedProducerIds[0] });
 
         _validationDataApiConfigMock.Setup(config => config.Value).Returns(new ValidationDataApiConfig { IsEnabled = true });
         _validationDataApiClientMock.Setup(x => x.GetOrganisation(userOrganisationId))
@@ -694,7 +784,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -737,7 +827,7 @@ public class SplitterServiceTests
             new() { ProducerId = "1" },
             new() { ProducerId = "2" }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         _validationDataApiConfigMock.Setup(config => config.Value)
@@ -794,7 +884,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -862,7 +952,7 @@ public class SplitterServiceTests
             new CsvDataRow { ProducerId = validProducerId },
             new CsvDataRow { ProducerId = invalidProducerId }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -924,7 +1014,7 @@ public class SplitterServiceTests
             new CsvDataRow { ProducerId = memberId },
             new CsvDataRow { ProducerId = notMemberId }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -980,7 +1070,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = validProducerIds[0] }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -1027,7 +1117,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = invalidProducerIds[0] }
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act
@@ -1067,7 +1157,7 @@ public class SplitterServiceTests
         _validationDataApiClientMock.Setup(x => x.GetOrganisationMembers(userOrganisationId, complianceSchemeId))
             .ReturnsAsync(new OrganisationMembersResult(uploadedProducerIds));
         _validationDataApiClientMock.Setup(x => x.GetValidOrganisations(uploadedProducerIds))
-            .ReturnsAsync(new OrganisationsResult(new List<string>() { uploadedProducerIds.First() }));
+            .ReturnsAsync(new OrganisationsResult(new List<string>() { uploadedProducerIds[0] }));
         _validationDataApiClientMock.Setup(x => x.GetValidOrganisations(uploadedProducerIds))
             .ReturnsAsync(organisations);
         _validationDataApiConfigMock.Setup(config => config.Value).Returns(new ValidationDataApiConfig { IsEnabled = true });
@@ -1091,7 +1181,7 @@ public class SplitterServiceTests
         {
             new CsvDataRow { ProducerId = uploadedProducerIds[0] },
         };
-        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<bool>()))
+        _csvHelperMock.Setup(x => x.GetItemsFromCsvStream<CsvDataRow>(It.IsAny<MemoryStream>(), It.IsAny<CsvDataFileConfig>()))
             .Returns(_csvItems);
 
         // Act

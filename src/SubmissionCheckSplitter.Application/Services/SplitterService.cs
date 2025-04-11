@@ -57,18 +57,18 @@ public class SplitterService : ISplitterService
     {
         var blobQueueMessage = _dequeueProvider.GetMessageFromJson<BlobQueueMessage>(message);
         var blobMemoryStream = _blobReader.DownloadBlobToStream(blobQueueMessage.BlobName);
-        _isLatest = csvDataFileConfigOptions.Value.IsLatest;
+        _isLatest = csvDataFileConfigOptions.Value.EnableTransitionalPackagingUnitsColumn;
 
         List<string> errors = null;
         var numberOfRecords = 0;
 
         try
         {
-            var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream, _isLatest);
+            var csvItems = _csvStreamParser.GetItemsFromCsvStream<CsvDataRow>(blobMemoryStream, csvDataFileConfigOptions.Value);
 
             if (csvItems.Any())
             {
-                var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod, _isLatest);
+                var numberedCsvItems = csvItems.ToNumberedCsvDataRows(blobQueueMessage.SubmissionPeriod, csvDataFileConfigOptions.Value);
 
                 var groupedByProducer = numberedCsvItems
                     .GroupBy(g => g.ProducerId)
@@ -113,7 +113,7 @@ public class SplitterService : ISplitterService
             else
             {
                 _logger.LogInformation(
-                    "The CSV file for submission ID {submissionId} is empty",
+                    "The CSV file for submission ID {SubmissionId} is empty",
                     blobQueueMessage.SubmissionId);
 
                 errors = new List<string>
@@ -138,6 +138,23 @@ public class SplitterService : ISplitterService
             errors = new List<string>
             {
                 ErrorCode.CsvParseExceptionErrorCode,
+            };
+        }
+        catch (ArgumentNullException exception)
+        {
+            _logger.LogError(exception, "CSV data rows are invalid OR it is missing Organisation id (Hint check for invisible rows in CSV)");
+            errors = new List<string>
+            {
+                ErrorCode.CsvFileEmptyErrorCode,
+            };
+        }
+        catch (ValidationDataApiClientException exception)
+        {
+            _logger.LogError(exception, exception.Message);
+
+            errors = new List<string>
+            {
+                ErrorCode.OrganisationNotFoundErrorCode,
             };
         }
         catch (Exception exception)
@@ -201,7 +218,8 @@ public class SplitterService : ISplitterService
             ToHomeNation = firstProducerRow.ToHomeNation,
             QuantityKg = firstProducerRow.QuantityKg,
             QuantityUnits = firstProducerRow.QuantityUnits,
-            PreviouslyImpactedQuantityUnits = _isLatest ? firstProducerRow.TransitionalPackagingUnits : null
+            TransitionalPackagingUnits = _isLatest ? firstProducerRow.TransitionalPackagingUnits : null,
+            RecyclabilityRating = firstProducerRow.RecyclabilityRating
         };
 
         return request;
