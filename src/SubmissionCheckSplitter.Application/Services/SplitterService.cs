@@ -33,6 +33,7 @@ public class SplitterService : ISplitterService
     private int _remainingErrorCount;
     private bool _isLatest;
 
+#pragma warning disable S107
     public SplitterService(
         IDequeueProvider dequeueProvider,
         IBlobReader blobReader,
@@ -52,6 +53,7 @@ public class SplitterService : ISplitterService
         _issueCountService = issueCountService;
         _logger = logger;
     }
+#pragma warning restore S107
 
     public async Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions, IOptions<ValidationConfig> validationOptions, IOptions<CsvDataFileConfig> csvDataFileConfigOptions)
     {
@@ -150,7 +152,7 @@ public class SplitterService : ISplitterService
         }
         catch (ValidationDataApiClientException exception)
         {
-            _logger.LogError(exception, exception.Message);
+            _logger.ValidationError(exception, exception.Message);
 
             errors = new List<string>
             {
