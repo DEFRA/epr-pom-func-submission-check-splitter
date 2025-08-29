@@ -178,17 +178,6 @@ public class SplitterService : ISplitterService
         }
     }
 
-    private async Task ProcessProducerGroups(Dictionary<string, List<NumberedCsvDataRow>> groupedByProducer, BlobQueueMessage blobQueueMessage)
-    {
-        foreach (var producerGroup in groupedByProducer)
-        {
-            await _serviceBusQueueClient.AddToProducerValidationQueue(
-                producerGroup.Key,
-                blobQueueMessage,
-                producerGroup.Value);
-        }
-    }
-
     private static string FormatStoreKey(string blobName, string issueType)
     {
         return $"{blobName}:{issueType}";
@@ -360,6 +349,17 @@ public class SplitterService : ISplitterService
 
             _warnings.Add(warningEventRequest);
             _remainingWarningCount -= 1;
+        }
+    }
+
+    private async Task ProcessProducerGroups(Dictionary<string, List<NumberedCsvDataRow>> groupedByProducer, BlobQueueMessage blobQueueMessage)
+    {
+        foreach (var producerGroup in groupedByProducer)
+        {
+            await _serviceBusQueueClient.AddToProducerValidationQueue(
+                producerGroup.Key,
+                blobQueueMessage,
+                producerGroup.Value);
         }
     }
 }
