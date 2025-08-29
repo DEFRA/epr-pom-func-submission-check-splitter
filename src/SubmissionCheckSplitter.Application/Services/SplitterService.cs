@@ -152,7 +152,7 @@ public class SplitterService : ISplitterService
         }
         catch (ValidationDataApiClientException exception)
         {
-            _logger.ValidationError(exception, exception.Message);
+            _logger.LogError(exception, "{Message}", exception.Message);
 
             errors = new List<string>
             {
