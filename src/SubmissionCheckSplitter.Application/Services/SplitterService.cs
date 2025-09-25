@@ -33,6 +33,7 @@ public class SplitterService : ISplitterService
     private int _remainingErrorCount;
     private bool _isLatest;
 
+#pragma warning disable S107
     public SplitterService(
         IDequeueProvider dequeueProvider,
         IBlobReader blobReader,
@@ -52,6 +53,7 @@ public class SplitterService : ISplitterService
         _issueCountService = issueCountService;
         _logger = logger;
     }
+#pragma warning restore S107
 
     public async Task ProcessServiceBusMessage(string message, IOptions<ValidationDataApiConfig> validationDataApiOptions, IOptions<ValidationConfig> validationOptions, IOptions<CsvDataFileConfig> csvDataFileConfigOptions)
     {
@@ -80,7 +82,7 @@ public class SplitterService : ISplitterService
                     groupedByProducer.Keys.ToArray(),
                     validationDataApiOptions.Value);
 
-                if (result is not null && result.IsComplianceScheme)
+                if (result?.IsComplianceScheme == true)
                 {
                     _remainingWarningCount = validationOptions.Value.MaxIssuesToProcess;
                     _warnings = await CheckComplianceSchemeMembers(
@@ -96,19 +98,10 @@ public class SplitterService : ISplitterService
                         blobQueueMessage.BlobName,
                         validationDataApiOptions.Value);
 
-                    if (_errors.Count > 0 && _warnings.Count > 0)
-                    {
-                        RemoveComplianceSchemeWarnings();
-                    }
+                    RemoveComplianceSchemeWarnings(_errors.Count, _warnings.Count);
                 }
 
-                foreach (var producerGroup in groupedByProducer)
-                {
-                    await _serviceBusQueueClient.AddToProducerValidationQueue(
-                        producerGroup.Key,
-                        blobQueueMessage,
-                        producerGroup.Value);
-                }
+                await ProcessProducerGroups(groupedByProducer, blobQueueMessage);
             }
             else
             {
@@ -150,7 +143,7 @@ public class SplitterService : ISplitterService
         }
         catch (ValidationDataApiClientException exception)
         {
-            _logger.LogError(exception, exception.Message);
+            _logger.LogError(exception, "{Message}", exception.Message);
 
             errors = new List<string>
             {
@@ -225,15 +218,19 @@ public class SplitterService : ISplitterService
         return request;
     }
 
-    private void RemoveComplianceSchemeWarnings()
+    private void RemoveComplianceSchemeWarnings(int errorCount, int warningCount)
     {
-        var existErrors = new HashSet<int>(_errors
-            .Where(e => e.ErrorCodes.Contains(ErrorCode.OrganisationDoesNotExistExistErrorCode))
-            .Select(e => e.RowNumber));
-        var intersectWarnings = _warnings
-            .Where(w => existErrors.Contains(w.RowNumber) && w.ErrorCodes.Contains(ErrorCode.ComplianceSchemeMemberNotFoundErrorCode))
-            .ToList();
-        _warnings = _warnings.Except(intersectWarnings).ToList();
+        if (errorCount > 0 && warningCount > 0)
+        {
+            var existErrors = new HashSet<int>(_errors
+                .Where(e => e.ErrorCodes.Contains(ErrorCode.OrganisationDoesNotExistExistErrorCode))
+                .Select(e => e.RowNumber));
+            var intersectWarnings = _warnings
+                .Where(w => existErrors.Contains(w.RowNumber) &&
+                            w.ErrorCodes.Contains(ErrorCode.ComplianceSchemeMemberNotFoundErrorCode))
+                .ToList();
+            _warnings = _warnings.Except(intersectWarnings).ToList();
+        }
     }
 
     private async Task<OrganisationDataResult> CheckOrganisationIds(
@@ -352,6 +349,17 @@ public class SplitterService : ISplitterService
 
             _warnings.Add(warningEventRequest);
             _remainingWarningCount -= 1;
+        }
+    }
+
+    private async Task ProcessProducerGroups(Dictionary<string, List<NumberedCsvDataRow>> groupedByProducer, BlobQueueMessage blobQueueMessage)
+    {
+        foreach (var producerGroup in groupedByProducer)
+        {
+            await _serviceBusQueueClient.AddToProducerValidationQueue(
+                producerGroup.Key,
+                blobQueueMessage,
+                producerGroup.Value);
         }
     }
 }

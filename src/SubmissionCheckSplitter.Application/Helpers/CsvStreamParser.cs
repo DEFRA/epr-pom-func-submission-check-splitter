@@ -49,7 +49,7 @@ public class CsvStreamParser : ICsvStreamParser
                 }
             }
 
-            if (header != null && (header.Length >= mandatoryHeaders.Count() && header.Where(x => !optionalHeaders.Contains(x)).ToList().SequenceEqual(mandatoryHeaders)))
+            if (header != null && (header.Length >= mandatoryHeaders.Count && header.Where(x => !optionalHeaders.Contains(x)).SequenceEqual(mandatoryHeaders)))
             {
                 csv.Context.RegisterClassMap(new CsvDataRowMap(mandatoryHeaders));
                 var result = csv.GetRecords<T>().ToList();

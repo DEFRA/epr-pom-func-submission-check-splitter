@@ -3,7 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 
 [ExcludeFromCodeCoverage]
-[Serializable]
 public class DeserializeQueueException : Exception
 {
     public DeserializeQueueException()
