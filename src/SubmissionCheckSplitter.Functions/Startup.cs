@@ -45,7 +45,6 @@ public class Startup : FunctionsStartup
             var validationDataApiConfig = sp.GetRequiredService<IOptions<ValidationDataApiConfig>>().Value;
             c.BaseAddress = new Uri(validationDataApiConfig.BaseUrl);
             c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            c.Timeout = TimeSpan.FromSeconds(validationDataApiConfig.Timeout);
         })
         .AddHttpMessageHandler<ValidationDataApiAuthorisationHandler>()
         .AddResilienceHandler("ValidationDataResiliencePipeline", BuildResiliencePipeline<ValidationDataApiConfig>(o => TimeSpan.FromSeconds(o.Timeout)));
