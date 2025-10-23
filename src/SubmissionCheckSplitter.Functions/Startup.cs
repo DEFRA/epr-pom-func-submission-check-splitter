@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
-using Polly.Retry;
 using Polly.Timeout;
 using SubmissionCheckSplitter.Application.Clients;
 using SubmissionCheckSplitter.Application.Clients.Interfaces;
@@ -69,7 +68,7 @@ public class Startup : FunctionsStartup
             MaxRetryAttempts = 4,
             Delay = TimeSpan.FromSeconds(2),
             BackoffType = DelayBackoffType.Exponential,
-            ShouldHandle = (RetryPredicateArguments<HttpResponseMessage> args) =>
+            ShouldHandle = args =>
             {
                 bool shouldHandle;
                 var exception = args.Outcome.Exception;
