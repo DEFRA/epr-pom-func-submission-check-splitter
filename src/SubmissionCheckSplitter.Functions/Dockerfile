@@ -11,7 +11,7 @@ COPY Directory.Build.props ./
 
 RUN dotnet publish SubmissionCheckSplitter.Functions/*.csproj --output /home/site/wwwroot
 
-FROM mcr.microsoft.com/azure-functions/dotnet:4-dotnet8
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated8.0
 # FROM defradigital/dotnetcore:dotnet8.0
 
 # Create a non-root user and set permissions
