@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.5.33627.172
+# Visual Studio Version 18
+VisualStudioVersion = 18.1.11312.151 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubmissionCheckSplitter.Functions", "SubmissionCheckSplitter.Functions\SubmissionCheckSplitter.Functions.csproj", "{0E0FB5A0-9899-4724-9D14-A125508D4CA2}"
 EndProject
@@ -13,11 +13,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SubmissionCheckSplitter.Uni
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2F7A6809-05D3-4036-A172-29041A97E0DB}"
 	ProjectSection(SolutionItems) = preProject
-		stylecop.ruleset = stylecop.ruleset
-		..\README.md = ..\README.md
-		Directory.Build.props = Directory.Build.props
 		..\CONTRIBUTING.md = ..\CONTRIBUTING.md
+		Directory.Build.props = Directory.Build.props
 		..\LICENCE.md = ..\LICENCE.md
+		..\README.md = ..\README.md
+		stylecop.ruleset = stylecop.ruleset
 	EndProjectSection
 EndProject
 Global
@@ -45,5 +45,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {748DAA6E-6D86-4818-8250-CFB70B6BCA51}
 	EndGlobalSection
 EndGlobal

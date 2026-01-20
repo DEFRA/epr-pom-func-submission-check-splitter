@@ -1,7 +1,7 @@
 {
   "IsEncrypted": false,
   "Values": {
-    "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "FUNCTIONS_WORKER_RUNTIME": "dotnet-isolated",
     "ServiceBus:ConnectionString": "Endpoint=sb://devrwdinfsb1401.servicebus.windows.net/",
     "ServiceBus:UploadQueueName": "defra.epr.pom.data.uploaded",
     "ServiceBus:SplitQueueName": "defra.epr.producer.data",

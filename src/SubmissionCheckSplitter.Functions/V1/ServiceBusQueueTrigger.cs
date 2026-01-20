@@ -2,7 +2,7 @@
 
 using Application.Extensions;
 using Application.Services;
-using Microsoft.Azure.WebJobs;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SubmissionCheckSplitter.Data.Config;
@@ -29,7 +29,7 @@ public class ServiceBusQueueTrigger
         _validationOptions = validationOptions;
     }
 
-    [FunctionName("ServiceBusQueueTrigger")]
+    [Function("ServiceBusQueueTrigger")]
     public async Task RunAsync([ServiceBusTrigger("%ServiceBus:UploadQueueName%", Connection = "ServiceBus:ConnectionString")] string message)
     {
         _logger.LogEnter();
