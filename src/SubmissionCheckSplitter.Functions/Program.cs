@@ -1,7 +1,10 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿namespace SubmissionCheckSplitter.Functions;
+
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
-using Microsoft.Azure.Functions.Extensions.DependencyInjection;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
@@ -11,42 +14,44 @@ using SubmissionCheckSplitter.Application.Clients.Interfaces;
 using SubmissionCheckSplitter.Application.Extensions;
 using SubmissionCheckSplitter.Application.Handlers;
 using SubmissionCheckSplitter.Data.Config;
-using SubmissionCheckSplitter.Functions;
 using SubmissionCheckSplitter.Functions.Extensions;
 
-[assembly: FunctionsStartup(typeof(Startup))]
-
-namespace SubmissionCheckSplitter.Functions;
-
 [ExcludeFromCodeCoverage]
-public class Startup : FunctionsStartup
+public static class Program
 {
-    public override void Configure(IFunctionsHostBuilder builder)
+    public static void Main(string[] args)
     {
-        var services = builder.Services;
+        var host = new HostBuilder()
+            .ConfigureFunctionsWorkerDefaults()
+            .ConfigureServices((context, services) =>
+            {
+                services.AddApplicationInsightsTelemetryWorkerService();
+                services.ConfigureFunctionsApplicationInsights();
+                services.AddLogging();
+                services.AddConfig();
+                services.AddApplication();
+                services.AddAzureClients();
 
-        services.AddLogging();
-        services.AddConfig();
-        services.AddApplication();
-        services.AddAzureClients();
-        services.AddApplicationInsightsTelemetry();
+                services.AddHttpClient<ISubmissionApiClient, SubmissionApiClient>((sp, c) =>
+                {
+                    var submissionApiConfig = sp.GetRequiredService<IOptions<SubmissionApiConfig>>().Value;
+                    c.BaseAddress = new Uri(submissionApiConfig.BaseUrl);
+                    c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                })
+                .AddResilienceHandler("SubmissionApiResiliencePipeline", BuildResiliencePipeline());
 
-        services.AddHttpClient<ISubmissionApiClient, SubmissionApiClient>((sp, c) =>
-        {
-            var submissionApiConfig = sp.GetRequiredService<IOptions<SubmissionApiConfig>>().Value;
-            c.BaseAddress = new Uri(submissionApiConfig.BaseUrl);
-            c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        })
-        .AddResilienceHandler("SubmissionApiResiliencePipeline", BuildResiliencePipeline());
+                services.AddHttpClient<IValidationDataApiClient, ValidationDataApiClient>((sp, c) =>
+                {
+                    var validationDataApiConfig = sp.GetRequiredService<IOptions<ValidationDataApiConfig>>().Value;
+                    c.BaseAddress = new Uri(validationDataApiConfig.BaseUrl);
+                    c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                })
+                .AddHttpMessageHandler<ValidationDataApiAuthorisationHandler>()
+                .AddResilienceHandler("ValidationDataResiliencePipeline", BuildResiliencePipeline<ValidationDataApiConfig>(o => TimeSpan.FromSeconds(o.Timeout)));
+            })
+            .Build();
 
-        services.AddHttpClient<IValidationDataApiClient, ValidationDataApiClient>((sp, c) =>
-        {
-            var validationDataApiConfig = sp.GetRequiredService<IOptions<ValidationDataApiConfig>>().Value;
-            c.BaseAddress = new Uri(validationDataApiConfig.BaseUrl);
-            c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        })
-        .AddHttpMessageHandler<ValidationDataApiAuthorisationHandler>()
-        .AddResilienceHandler("ValidationDataResiliencePipeline", BuildResiliencePipeline<ValidationDataApiConfig>(o => TimeSpan.FromSeconds(o.Timeout)));
+        host.Run();
     }
 
     private static Action<ResiliencePipelineBuilder<HttpResponseMessage>> BuildResiliencePipeline() =>

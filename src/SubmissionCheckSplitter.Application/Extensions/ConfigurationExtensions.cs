@@ -15,11 +15,10 @@ public static class ConfigurationExtensions
         bool validate = true)
         where TOptions : class, new()
     {
-        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(nameof(services));
+        ArgumentNullException.ThrowIfNull(nameof(sectionKey));
 
-        ArgumentNullException.ThrowIfNull(sectionKey);
-
-        services.AddOptions<TOptions>().Configure(delegate(TOptions options, IConfiguration config)
+        services.AddOptions<TOptions>().Configure((TOptions options, IConfiguration config) =>
         {
             config.GetSection(sectionKey).Bind(options);
             if (validate)

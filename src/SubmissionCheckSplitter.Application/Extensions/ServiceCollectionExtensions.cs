@@ -23,16 +23,17 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICsvStreamParser, CsvStreamParser>();
 
         // services
-        var redisOptions = services.BuildServiceProvider()
-            .GetRequiredService<IOptions<RedisConfig>>().Value;
-
         services.AddScoped<ISplitterService, SplitterService>();
         services.AddScoped<IDequeueProvider, DequeueProvider>();
         services.AddScoped<IBlobReader, BlobReader>();
         services.AddScoped<IServiceBusQueueClient, ServiceBusQueueClient>();
         services.AddScoped<ISubmissionApiClient, SubmissionApiClient>();
         services.AddTransient<ValidationDataApiAuthorisationHandler>();
-        services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisOptions.ConnectionString));
+        services.AddSingleton<IConnectionMultiplexer>(sp =>
+        {
+            var redisOptions = sp.GetRequiredService<IOptions<RedisConfig>>().Value;
+            return ConnectionMultiplexer.Connect(redisOptions.ConnectionString);
+        });
         services.AddSingleton<IIssueCountService, IssueCountService>();
 
         return services;
