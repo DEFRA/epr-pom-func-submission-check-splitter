@@ -1,4 +1,6 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿namespace SubmissionCheckSplitter.Functions;
+
+using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +17,7 @@ using SubmissionCheckSplitter.Data.Config;
 using SubmissionCheckSplitter.Functions.Extensions;
 
 [ExcludeFromCodeCoverage]
-public class Program
+public static class Program
 {
     public static void Main(string[] args)
     {
