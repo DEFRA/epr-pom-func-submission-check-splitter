@@ -1,6 +1,6 @@
 # Use the SDK image to build your application
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS installer-env
-# FROM defradigital/dotnetcore-development:dotnet8.0 AS installer-env
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS installer-env
+# FROM defradigital/dotnetcore-development:dotnet10.0 AS installer-env
 
 # Copy everything
 COPY SubmissionCheckSplitter.Functions/. ./SubmissionCheckSplitter.Functions/.
@@ -11,8 +11,8 @@ COPY Directory.Build.props ./
 
 RUN dotnet publish SubmissionCheckSplitter.Functions/*.csproj --output /home/site/wwwroot
 
-FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated8.0
-# FROM defradigital/dotnetcore:dotnet8.0
+FROM mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0
+# FROM defradigital/dotnetcore:dotnet10.0
 
 # Create a non-root user and set permissions
 RUN groupadd -r dotnet && \
